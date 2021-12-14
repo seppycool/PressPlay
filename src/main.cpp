@@ -43,79 +43,21 @@
 #include "freertos/task.h"
 #include "freertos/timers.h"
 #include <EasyButton.h>
+#include <WiFi.h>
+#include <PubSubClient.h>
+#include "time.h"
 
 // Include the UI lib
 #include "OLEDDisplayUi.h"
 
 // Include custom images
 #include "images.h"
-
-#include <WiFi.h>
-#include <PubSubClient.h>
-#include "time.h"
 #include "config.h"
-
-const char* ssid       = SSID_NERDLAB;
-const char* password   = PASSWORD_NERDLAB;
-
-const char* ssid1       = SSID_PRIVATE;
-const char* password1   = PASSWORD_PRIVATE;
-const char* mqtt_server = MQTT_SERVER;
-
-const char* ntpServer = "pool.ntp.org";
-const long  gmtOffset_sec = 3600;
-const int   daylightOffset_sec = 3600;
-
-#define BAT_CURVE_COUNT 14
-const int batteryCurve[2][BAT_CURVE_COUNT] = { {5000, 4200,  4060, 3980, 3920, 3870, 3820, 3790, 3770, 3740, 3680, 3450, 3000, 0},
-                                               {100 , 100 ,    90,   80,   70,   60,   50,   40,   30,   20,   10,    5,    0, 0}};
-
-float VBAT;  // battery voltage from ESP32 ADC read
-int SOC;  //battery SOC percentage
-int SOCAlert = 10;
-
-String macAddress = WiFi.macAddress();
-const int freq = 5000;
-const int ledChannel1 = 0;
-const int ledChannel2 = 1;
-const int resolution = 8;
-
-int lightshow = 0;
-bool buttonsActive = true;
-#define BUTTON1_PIN 14
-#define BUTTON1_LED 12
-#define BUTTON2_PIN 27
-#define BUTTON2_LED 25
-#define BATTERY_PIN 35
-int button1LedState = LOW;
-int button2LedState = LOW;
-enum Button{none,button1,button2};
-Button lastButtonClicked = none;
+#include "wificonfig.h"
 
 
-
-struct tm timeinfo;
 
 // Use the corresponding display class:
-
-// Initialize the OLED display using SPI
-// D5 -> CLK
-// D7 -> MOSI (DOUT)
-// D0 -> RES
-// D2 -> DC
-// D8 -> CS
-// SSD1306Spi        display(D0, D2, D8);
-// or
-// SH1106Spi         display(D0, D2);
-
-// Initialize the OLED display using brzo_i2c
-// D3 -> SDA
-// D5 -> SCL
-// SSD1306Brzo display(0x3c, D3, D5);
-// or
-// SH1106Brzo  display(0x3c, D3, D5);
-
-
 
 void WiFiMqtt_task(void *pvParameter);
 void buttons_task(void *pvParameter);
@@ -131,7 +73,6 @@ void setup() {
   Serial.println();
   pinMode(BATTERY_PIN, INPUT);
 
-  
   xTaskCreatePinnedToCore(&WiFiMqtt_task,"WifiMqttTask",4048,NULL,1,NULL,1);
   xTaskCreatePinnedToCore(&buttons_task,"goButtonTask",2048,NULL,5,NULL,1);
   xTaskCreatePinnedToCore(&screen_task,"screenTask",2048,NULL,5,NULL,1);
@@ -166,47 +107,47 @@ void callback(char* topic, byte* message, unsigned int length) {
   }
   Serial.println();
   // Feel free to add more if statements to control more GPIOs with MQTT
-  if (String(topic) == "controllers/button1Led") {
+  if (String(topic) == "controllers/output/button1Led") {
     int dutycycle = atoi(messageTemp.c_str());
     if(dutycycle > 0 && dutycycle<=255 ){
       ledcWrite(ledChannel1,dutycycle);
       button2LedState = dutycycle;
     }
   }
-  if (String(topic) == "controllers/button2Led") {
+  if (String(topic) == "controllers/output/button2Led") {
     int dutycycle = atoi(messageTemp.c_str());
     if(dutycycle > 0 && dutycycle<=255 ){
       ledcWrite(ledChannel2,dutycycle);
       button1LedState = dutycycle;
     }
   }
-  if (String(topic) == "controllers/lightshow") {
+  if (String(topic) == "controllers/output/lightshow") {
     lightshow = atoi(messageTemp.c_str());
   }
-  if (String(topic) == "controllers/alertSOC") {
+  if (String(topic) == "controllers/output/alertSOC") {
     int newAlertSOC = atoi(messageTemp.c_str());
     if(newAlertSOC > 0 && newAlertSOC<=100 )
       SOCAlert = newAlertSOC;
   }
-  if (String(topic) == "controllers/status") {
+  if (String(topic) == "controllers/output/status") {
     if(messageTemp == "battery"){
       if(SOC<SOCAlert){
         lightshow = 1;
       }
     }
     if(messageTemp == "lastButton"){
-      if(lastButtonClicked == button1) {
-        setButtonLedState(button1,HIGH);
-        setButtonLedState(button2,LOW);
+      if(lastButtonClicked == e_button1) {
+        setButtonLedState(e_button1,HIGH);
+        setButtonLedState(e_button2,LOW);
       }
-      if(lastButtonClicked == button2){
-        setButtonLedState(button1,LOW);
-        setButtonLedState(button2,HIGH);
+      if(lastButtonClicked == e_button2){
+        setButtonLedState(e_button1,LOW);
+        setButtonLedState(e_button2,HIGH);
       }
     }
     if(messageTemp == "resetLed"){
-      setButtonLedState(button1,LOW);
-      setButtonLedState(button2,LOW);
+      setButtonLedState(e_button1,LOW);
+      setButtonLedState(e_button2,LOW);
     }
     if(messageTemp == "buttonsDeactivate"){
       buttonsActive = false;
@@ -225,11 +166,21 @@ void reconnect() {
     if (client.connect(macAddress.c_str())) {
       Serial.println("connected");
       // Subscribe
-      client.subscribe("controllers/button1Led");
-      client.subscribe("controllers/button2Led");
-      client.subscribe("controllers/lightshow");
-      client.subscribe("controllers/status");
-      client.subscribe("controllers/alertSOC");
+      client.subscribe("controllers/output/button1Led");
+      client.subscribe("controllers/output/button2Led");
+      client.subscribe("controllers/output/lightshow");
+      client.subscribe("controllers/output/status");
+      client.subscribe("controllers/output/alertSOC");
+      client.subscribe("controllers/output/*");
+
+      String topicOutputMacAdress = "controllers/"+ macAddress + "/output/*";
+      client.subscribe(topicOutputMacAdress.c_str());
+
+      //Send I'm Alive Message if connected
+      String topic = "controllers/" + macAddress + "/im_alive";
+      String payload = "im_alive";
+      client.publish(topic.c_str(),payload.c_str());
+
     } else {
       Serial.print("failed, rc=");
       Serial.print(client.state());
@@ -266,6 +217,7 @@ void WiFiMqtt_task(void *pvParameter){
   client.setServer(mqtt_server, 1883);
   client.setCallback(callback);
 
+
   for(;;){
     if (!client.connected()) {
       reconnect();
@@ -281,11 +233,11 @@ void WiFiMqtt_task(void *pvParameter){
 void setButtonLedState(Button button){
   switch (button)
   {
-  case button1:
+  case e_button1:
     if(button1LedState) ledcWrite(ledChannel1, 255);
     else ledcWrite(ledChannel1, 0);
     break;
-  case button2:
+  case e_button2:
     if(button2LedState) ledcWrite(ledChannel2, 255);
     else ledcWrite(ledChannel2, 0);
     break;
@@ -295,17 +247,17 @@ void setButtonLedState(Button button){
   }
 }
 void setButtonLedState(){
-  setButtonLedState(button1);
-  setButtonLedState(button2);
+  setButtonLedState(e_button1);
+  setButtonLedState(e_button2);
 }
 
 void setButtonLedState(Button button, bool state){
   switch (button)
   {
-  case button1:
+  case e_button1:
     button1LedState = state;
     break;
-  case button2:
+  case e_button2:
     button2LedState = state;
     break;
   
@@ -348,12 +300,12 @@ void onPressedButton1()
 { 
   Serial.println("Button1 pressed");
   getLocalTime();
-  lastButtonClicked = button1;
+  lastButtonClicked = e_button1;
 
   button1LedState = !button1LedState;
-  setButtonLedState(button1);
+  setButtonLedState(e_button1);
 
-  String topic = macAddress + "/button1/state";
+  String topic = "controllers/" + macAddress + "/input/button1/state";
   String payload = "pressed";
   client.publish(topic.c_str(),payload.c_str());
 
@@ -361,7 +313,7 @@ void onPressedButton1()
   payload = "controllers,id="+macAddress +" button=1";
   client.publish(topic.c_str(),payload.c_str());
   
-  topic = macAddress + "/button1/lastPressed";
+   topic = "controllers/" + macAddress + "/input/button1/lastPressed";
   char timeStringBuff[50]; //50 chars should be enough
   strftime(timeStringBuff, sizeof(timeStringBuff), "%A, %B %d %Y %H:%M:%S", &timeinfo);
   client.publish(topic.c_str(),timeStringBuff);
@@ -370,29 +322,40 @@ void onPressedButton2()
 { 
   Serial.println("Button2 pressed");
   getLocalTime();
-  lastButtonClicked = button2;
+  lastButtonClicked = e_button2;
 
   button2LedState = !button2LedState;
-  setButtonLedState(button2);
+  setButtonLedState(e_button2);
 
-  String topic = macAddress + "/button2/state";
+  String topic = "controllers/" + macAddress + "/input/button2/state";
   String payload = "pressed";
   client.publish(topic.c_str(),payload.c_str());
 
   topic = "controllers/"+ macAddress + "/input";
   payload = "controllers,id="+macAddress +" button=2";
 
-  topic = macAddress + "/button2/lastPressed";
+  topic = "controllers/" + macAddress + "/input/button2/lastPressed";
   char timeStringBuff[50]; //50 chars should be enough
   strftime(timeStringBuff, sizeof(timeStringBuff), "%A, %B %d %Y %H:%M:%S", &timeinfo);
   client.publish(topic.c_str(),timeStringBuff);
 }
 
+// void button1ISR()
+// {
+//   if(buttonsActive){
+//     button1.read();
+//   }
+// }
+
+// void button2ISR()
+// {
+//   if(buttonsActive){
+//     button2.read();
+//   }
+// }
+
 void buttons_task(void *pvParameter){
   printf("button1Task is started");
-  EasyButton button1(BUTTON1_PIN);
-  EasyButton button2(BUTTON2_PIN);
-
   // configure LED PWM functionalitites
   ledcSetup(ledChannel1, freq, resolution);
   // attach the channel to the GPIO to be controlled
@@ -412,6 +375,8 @@ void buttons_task(void *pvParameter){
   button2.begin();
   button1.onPressed(onPressedButton1);
   button2.onPressed(onPressedButton2);
+  //button1.enableInterrupt(button1ISR);
+  //button2.enableInterrupt(button2ISR);
 
   for(;;){
     if(buttonsActive){
@@ -434,7 +399,7 @@ void buttons_task(void *pvParameter){
       lightshow = false;
     }
 
-    vTaskDelay(pdMS_TO_TICKS(10));
+    vTaskDelay(pdMS_TO_TICKS(100));
   } 
 }
 
@@ -612,8 +577,7 @@ void battery_timer_callBack( TimerHandle_t xTimer ){
   Serial.println(VBATmV);
   Serial.print("SOC: ");
   Serial.println(SOC);
-
-  String topicBattery_state = macAddress + "/status/battery";
+  String topicBattery_state = "controllers/" + macAddress + "/input/status/battery";
   String payload = (String)SOC;
   client.publish(topicBattery_state.c_str(),payload.c_str());
 }
