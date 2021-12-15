@@ -171,9 +171,9 @@ void reconnect() {
       client.subscribe("controllers/output/lightshow");
       client.subscribe("controllers/output/status");
       client.subscribe("controllers/output/alertSOC");
-      client.subscribe("controllers/output/*");
+      client.subscribe("controllers/output/#");
 
-      String topicOutputMacAdress = "controllers/"+ macAddress + "/output/*";
+      String topicOutputMacAdress = "controllers/"+ macAddress + "/output/#";
       client.subscribe(topicOutputMacAdress.c_str());
 
       //Send I'm Alive Message if connected
