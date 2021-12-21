@@ -1,10 +1,15 @@
 #include "wificonfig.h"
 #include <EasyButton.h>
 
-#define BUTTON1_PIN 14
-#define BUTTON1_LED 12
-#define BUTTON2_PIN 27
-#define BUTTON2_LED 25
+#define BUTTONLEFT_PIN 14
+#define BUTTONLEFT_LED 12
+#define BUTTONRIGHT_PIN 27
+#define BUTTONRIGHT_LED 25
+#define JOYSTICK_UP 33
+#define JOYSTICK_DOWN 32
+#define JOYSTICK_RIGHT 34
+#define JOYSTICK_LEFT 36
+#define JOYSTICK_CENTER 39
 #define BATTERY_PIN 35
 
 
@@ -27,6 +32,9 @@ float VBAT;  // battery voltage from ESP32 ADC read
 int SOC;  //battery SOC percentage
 int SOCAlert = 10;
 
+String screenMQTT = "<=GREEN \n RED=>";
+
+
 String macAddress = WiFi.macAddress();
 const int freq = 5000;
 const int ledChannel1 = 0;
@@ -36,11 +44,15 @@ const int resolution = 8;
 int lightshow = 0;
 bool buttonsActive = true;
 
-int button1LedState = LOW;
-int button2LedState = LOW;
-enum Button{e_none,e_button1,e_button2};
+enum Button{e_none,e_buttonLeft,e_buttonRight, e_joystickUp = 5, e_joystickDown, e_joystickLeft, e_joystickRight, e_joystickCenter, e_button_max};
+int buttonCount[e_button_max];
 Button lastButtonClicked = e_none;
-EasyButton button1(BUTTON1_PIN);
-EasyButton button2(BUTTON2_PIN);
+EasyButton buttonLeft(BUTTONLEFT_PIN);
+EasyButton buttonRight(BUTTONRIGHT_PIN);
+EasyButton joystickLeft(JOYSTICK_LEFT);
+EasyButton joystickRight(JOYSTICK_RIGHT);
+EasyButton joystickUp(JOYSTICK_UP);
+EasyButton joystickDown(JOYSTICK_DOWN);
+EasyButton joystickCenter(JOYSTICK_CENTER);
 
 struct tm timeinfo;
