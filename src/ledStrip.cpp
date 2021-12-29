@@ -6,6 +6,8 @@
 // widely-varying set of parameters.
 
 CRGB ledStrip[NUM_LEDS];
+LedAnimation ledAnimation = e_allOff;
+CRGB ledAnimationColor;
 
 void pride() 
 {

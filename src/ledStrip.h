@@ -12,6 +12,9 @@
 #define BRIGHTNESS  200
 #define FRAMES_PER_SECOND 60
 extern CRGB ledStrip[NUM_LEDS];
+enum LedAnimation{e_allOff,  e_glowing, e_SpinningSinWave, e_pride, e_allOn, e_ledAnimations_max};
+extern LedAnimation ledAnimation;
+extern CRGB ledAnimationColor;
 
 void pride();
 void greenLedStrip();

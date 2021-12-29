@@ -321,7 +321,8 @@ void onPressedButtonLeft()
   lastButtonClicked = e_buttonLeft;
   setButtonLedLastClicked();
   buttonCount[(int)e_buttonLeft]++;
-
+  ledAnimation = e_glowing;
+  ledAnimationColor = CRGB(255,0,0);
   sendButtonPressedMqtt(e_buttonLeft);
 }
 void onPressedButtonRight()
@@ -330,6 +331,9 @@ void onPressedButtonRight()
   lastButtonClicked = e_buttonRight;
   setButtonLedLastClicked();
   buttonCount[(int)e_buttonRight]++;
+
+  ledAnimation = e_SpinningSinWave;
+  ledAnimationColor = CRGB(0,255,0);
 
   sendButtonPressedMqtt(e_buttonRight);
 }
@@ -358,6 +362,7 @@ void onPressedJoystickCenter(){
     lastButtonClicked = e_none;
     setButtonLedLastClicked();
   #endif
+  ledAnimation = e_pride;
 }
 
 void buttons_task(void *pvParameter){
@@ -460,10 +465,10 @@ int overlaysCount = 1;
 int getLocalTime()
 {
   if(!getLocalTime(&timeinfo)){
-    Serial.println("Failed to obtain time");
+    //Serial.println("Failed to obtain time");
     return 1;
   }
-  Serial.println(&timeinfo, "%A, %B %d %Y %H:%M:%S");
+  //Serial.println(&timeinfo, "%A, %B %d %Y %H:%M:%S");
   return 0;
 }
 
@@ -651,20 +656,30 @@ void leds_task(void *pvParameter){
   FastLED.setBrightness( BRIGHTNESS );
   for(;;)
   {
-    switch (lastButtonClicked)
+    switch (ledAnimation)
     {
-    case e_buttonLeft:
+    case e_glowing:
       //SpinningSinWave(CRGB(255,0,0),4);
       //vTaskDelay(pdMS_TO_TICKS(100));
-      glowing(CRGB(255,0,0),1);
+      glowing(ledAnimationColor,5);
       break;
-    case e_buttonRight:
+    case e_SpinningSinWave:
       //CenterToRight(0,255,0);
       //setPixels(CRGB(0,255,0),0, CENTER_LED);
-      SpinningSinWave(CRGB(0,255,0),4);
+      SpinningSinWave(ledAnimationColor,4);
       vTaskDelay(pdMS_TO_TICKS(100));
       break;
+    case e_pride:
+      pride();
+      FastLED.show();
+    case e_allOn:
+      setPixels(ledAnimationColor,0,NUM_LEDS);
+      break;
+    case e_allOff:
+      setPixels(CRGB(0,0,0),0,NUM_LEDS);
+      break;
     default:
+      //setPixels(CRGB(0,0,0),0,NUM_LEDS);
       pride();
       FastLED.show();
       break;
