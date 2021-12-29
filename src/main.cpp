@@ -55,6 +55,8 @@
 #include "config.h"
 #include "wificonfig.h"
 
+#include "ledStrip.h"
+
 #define TEST 1
 
 
@@ -63,6 +65,7 @@
 void WiFiMqtt_task(void *pvParameter);
 void buttons_task(void *pvParameter);
 void screen_task(void *pvParameter);
+void leds_task(void *pvParameter);
 TimerHandle_t StatusTimer_handle;
 void status_timer_callBack( TimerHandle_t xTimer );
 int getLocalTime();
@@ -78,6 +81,7 @@ void setup() {
   xTaskCreatePinnedToCore(&WiFiMqtt_task,"WifiMqttTask",4048,NULL,1,NULL,1);
   xTaskCreatePinnedToCore(&buttons_task,"goButtonTask",2048,NULL,5,NULL,1);
   xTaskCreatePinnedToCore(&screen_task,"screenTask",2048,NULL,5,NULL,1);
+  xTaskCreatePinnedToCore(&leds_task,"ledsTask",2048,NULL,5,NULL,1);
   StatusTimer_handle = xTimerCreate("StatusTimerTask",pdMS_TO_TICKS(5000),pdTRUE,( void * ) 0,status_timer_callBack);
   if( xTimerStart(StatusTimer_handle, 0 ) != pdPASS )
     Serial.println("Timer not started");
@@ -639,3 +643,36 @@ void status_timer_callBack( TimerHandle_t xTimer ){
     client.publish(topic.c_str(),payload.c_str());
   }
 }
+
+
+void leds_task(void *pvParameter){
+  vTaskDelay(pdMS_TO_TICKS(3000)); // sanity delay
+  FastLED.addLeds<CHIPSET, LED_PIN, COLOR_ORDER>(ledStrip, NUM_LEDS).setCorrection( TypicalLEDStrip );
+  FastLED.setBrightness( BRIGHTNESS );
+  for(;;)
+  {
+    switch (lastButtonClicked)
+    {
+    case e_buttonLeft:
+      //SpinningSinWave(CRGB(255,0,0),4);
+      //vTaskDelay(pdMS_TO_TICKS(100));
+      glowing(CRGB(255,0,0),1);
+      break;
+    case e_buttonRight:
+      //CenterToRight(0,255,0);
+      //setPixels(CRGB(0,255,0),0, CENTER_LED);
+      SpinningSinWave(CRGB(0,255,0),4);
+      vTaskDelay(pdMS_TO_TICKS(100));
+      break;
+    default:
+      pride();
+      FastLED.show();
+      break;
+    }    
+    vTaskDelay(pdMS_TO_TICKS(1000/FRAMES_PER_SECOND));
+  }
+}
+
+
+
+
