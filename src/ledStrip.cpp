@@ -116,5 +116,71 @@ void CenterToRight(byte red, byte green, byte blue){
 }
 
 
+void fadeall() { for(int i = 0; i < NUM_LEDS; i++) { ledStrip[i].nscale8(200); } }
+
+void cyclon(int start, int end) { 
+  static uint8_t hue = 0;
+  static int8_t index = start;
+  static bool direction = true;
+  // First slide the led in one direction
+  // Set the i'th led to red 
+  ledStrip[index] = CHSV(hue++, 255, 255);
+  // Show the leds
+  FastLED.show(); 
+  // now that we've shown the leds, reset the i'th led to black
+  // leds[i] = CRGB::Black;
+  fadeall();
+  // Wait a little bit before we loop around and do it again
+  vTaskDelay(pdMS_TO_TICKS(100));
+  
+  if(direction){
+    index++;
+    if(index>end){
+      direction = !direction;
+      index--;
+    }
+  }
+  else{
+    index--;
+    if(index<start){
+      direction = !direction;
+      index++;
+    }
+  }
+}
+
+void cyclon2(int start, int end) { 
+  static uint8_t hue = 0;
+  int middle = (start + end)/2;
+  static int8_t index = 0;
+  static bool direction = true;
+  // First slide the led in one direction
+  // Set the i'th led to red 
+  ledStrip[middle + index] = CHSV(hue++, 255, 255);
+  ledStrip[middle - index] = CHSV(hue++, 255, 255);
+  // Show the leds
+  FastLED.show(); 
+  // now that we've shown the leds, reset the i'th led to black
+  // leds[i] = CRGB::Black;
+  fadeall();
+  // Wait a little bit before we loop around and do it again
+  vTaskDelay(pdMS_TO_TICKS(100));
+  
+  if(direction){
+    index++;
+    if((middle+index)>end){
+      direction = !direction;
+      index--;
+    }
+  }
+  else{
+    index--;
+    if((index)<0){
+      direction = !direction;
+      index++;
+    }
+  }
+}
+
 
 

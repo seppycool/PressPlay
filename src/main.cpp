@@ -321,7 +321,7 @@ void onPressedButtonLeft()
   lastButtonClicked = e_buttonLeft;
   setButtonLedLastClicked();
   buttonCount[(int)e_buttonLeft]++;
-  ledAnimation = e_glowing;
+  ledAnimation =  (LedAnimation)(buttonCount[(int)e_buttonLeft]%e_ledAnimations_max);
   ledAnimationColor = CRGB(255,0,0);
   sendButtonPressedMqtt(e_buttonLeft);
 }
@@ -672,11 +672,18 @@ void leds_task(void *pvParameter){
     case e_pride:
       pride();
       FastLED.show();
+      break;
     case e_allOn:
       setPixels(ledAnimationColor,0,NUM_LEDS);
       break;
     case e_allOff:
       setPixels(CRGB(0,0,0),0,NUM_LEDS);
+      break;
+    case e_cyclon:
+      cyclon(CENTER_LED, NUM_LEDS);
+      break;
+    case e_cyclon2:
+      cyclon2(0, NUM_LEDS-1);
       break;
     default:
       //setPixels(CRGB(0,0,0),0,NUM_LEDS);

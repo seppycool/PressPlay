@@ -12,7 +12,7 @@
 #define BRIGHTNESS  200
 #define FRAMES_PER_SECOND 60
 extern CRGB ledStrip[NUM_LEDS];
-enum LedAnimation{e_allOff,  e_glowing, e_SpinningSinWave, e_pride, e_allOn, e_ledAnimations_max};
+enum LedAnimation{e_allOff, e_cyclon, e_cyclon2, e_glowing, e_SpinningSinWave, e_pride, e_allOn, e_ledAnimations_max};
 extern LedAnimation ledAnimation;
 extern CRGB ledAnimationColor;
 
@@ -25,4 +25,6 @@ void SpinningSinWave(CRGB color, int darkSpotCount);
 void setPixels(CRGB color, int from, int to);
 void setAll(CRGB color);
 void glowing(CRGB color, int speed);
+void cyclon(int start, int end);
+void cyclon2(int start, int end);
 #endif
