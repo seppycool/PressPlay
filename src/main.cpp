@@ -68,6 +68,8 @@ void screen_task(void *pvParameter);
 void leds_task(void *pvParameter);
 TimerHandle_t StatusTimer_handle;
 void status_timer_callBack( TimerHandle_t xTimer );
+TimerHandle_t QuestionTimer_handle;
+void question_timer_callBack( TimerHandle_t xTimer );
 int getLocalTime();
 void setButtonLed(Button button, bool state);
 void setButtonLedLastClicked();
@@ -82,7 +84,8 @@ void setup() {
   xTaskCreatePinnedToCore(&buttons_task,"goButtonTask",2048,NULL,5,NULL,1);
   xTaskCreatePinnedToCore(&screen_task,"screenTask",2048,NULL,5,NULL,1);
   xTaskCreatePinnedToCore(&leds_task,"ledsTask",2048,NULL,5,NULL,1);
-  StatusTimer_handle = xTimerCreate("StatusTimerTask",pdMS_TO_TICKS(5000),pdTRUE,( void * ) 0,status_timer_callBack);
+  StatusTimer_handle = xTimerCreate("StatusTimerTask",pdMS_TO_TICKS(STATUS_TIMER_CYCLE),pdTRUE,( void * ) 0,status_timer_callBack);
+  QuestionTimer_handle = xTimerCreate("QuestionTimerTask",pdMS_TO_TICKS(QUESTION_TIMER_CYCLE),pdTRUE,( void * ) 1,question_timer_callBack);
   if( xTimerStart(StatusTimer_handle, 0 ) != pdPASS )
     Serial.println("Timer not started");
   status_timer_callBack(StatusTimer_handle);
@@ -343,7 +346,12 @@ void onPressedButtonRight()
 
   ledAnimation = e_SpinningSinWave;
   ledAnimationColor = CRGB(0,255,0);
-  ui.switchToFrame(4);
+  
+  ui.switchToFrame(5);
+  questionTimerCount = 0;
+  questionTimerDuration = 5000;
+  if( xTimerStart(QuestionTimer_handle, 0 ) != pdPASS )
+    Serial.println("Timer not started");
 
   sendButtonPressedMqtt(e_buttonRight);
 }
@@ -452,6 +460,7 @@ void digitalClockFrame(OLEDDisplay *display, OLEDDisplayUiState* state, int16_t 
 void batteryFrame(OLEDDisplay *display, OLEDDisplayUiState* state, int16_t x, int16_t y);
 void MQTTFrame(OLEDDisplay *display, OLEDDisplayUiState* state, int16_t x, int16_t y);
 void questionFrame(OLEDDisplay *display, OLEDDisplayUiState* state, int16_t x, int16_t y);
+void questionFrame2(OLEDDisplay *display, OLEDDisplayUiState* state, int16_t x, int16_t y);
 void clockOverlay(OLEDDisplay *display, OLEDDisplayUiState* state);
 
 int screenW = 128;
@@ -462,10 +471,10 @@ int clockRadius = 23;
 
 // This array keeps function pointers to all frames
 // frames are the single views that slide in
-FrameCallback frames[] = { analogClockFrame, digitalClockFrame, batteryFrame, MQTTFrame, questionFrame};
+FrameCallback frames[] = { analogClockFrame, digitalClockFrame, batteryFrame, MQTTFrame, questionFrame,questionFrame2};
 
 // how many frames are there?
-int frameCount = 5;
+int frameCount = 6;
 
 // Overlays are statically drawn on top of a frame eg. a clock
 OverlayCallback overlays[] = { clockOverlay };
@@ -551,30 +560,60 @@ void batteryFrame(OLEDDisplay *display, OLEDDisplayUiState* state, int16_t x, in
   String socBat = String(SOC)+ " %";
   display->setTextAlignment(TEXT_ALIGN_CENTER);
   display->setFont(ArialMT_Plain_24);
-  display->drawString(clockCenterX + x , 16 + y, socBat);
+  display->drawString(clockCenterX + x , 10 + y, socBat);
   display->drawString(clockCenterX + x , clockCenterY + y, vBat );
 }
 
 void MQTTFrame(OLEDDisplay *display, OLEDDisplayUiState* state, int16_t x, int16_t y) {
   display->setTextAlignment(TEXT_ALIGN_CENTER);
   display->setFont(ArialMT_Plain_24);
-  display->drawString(clockCenterX + x , 16 + y, screenMQTT);
+  display->drawString(clockCenterX + x , 10 + y, screenMQTT);
 }
 void questionFrame(OLEDDisplay *display, OLEDDisplayUiState* state, int16_t x, int16_t y) {
-  static int angle = 0;
-  angle = angle + ;
-  display->drawCircle(clockCenterX + x, clockCenterY + y, 2);
-  for ( int z = 0; z < angle%360; z++ ) {
-    //Begin at 0° and stop at 360°
-    float angle = z ;
-    angle = ( angle / 57.29577951 ) ; //Convert degrees to radians
-    int x2 = ( clockCenterX + ( sin(angle) * clockRadius ) );
-    int y2 = ( clockCenterY - ( cos(angle) * clockRadius ) );
-    int x3 = ( clockCenterX );
-    int y3 = ( clockCenterY );
-    display->drawLine( x2 + x , y2 + y , x3 + x , y3 + y);
+  int stopAngle = map(questionTimerCount,0,questionTimerDuration,0,360);
+  if(questionTimerCount<questionTimerDuration){
+    display->drawCircle(clockCenterX + x, clockCenterY + y, 2);
+    for ( int z = 0; z < stopAngle; z++ ) {
+      //Begin at 0° and stop at 360°
+      float angle = z ;
+      angle = ( angle / 57.29577951 ) ; //Convert degrees to radians
+      int x2 = ( clockCenterX + ( sin(angle) * clockRadius ) );
+      int y2 = ( clockCenterY - ( cos(angle) * clockRadius ) );
+      int x3 = ( clockCenterX );
+      int y3 = ( clockCenterY );
+      display->drawLine( x2 + x , y2 + y , x3 + x , y3 + y);
+    }
+  }
+  else{
+    display->setTextAlignment(TEXT_ALIGN_CENTER);
+    display->setFont(ArialMT_Plain_24);
+    display->drawString(clockCenterX + x , 10 + y, screenQuestion);
   }
 }
+
+void questionFrame2(OLEDDisplay *display, OLEDDisplayUiState* state, int16_t x, int16_t y) {
+  int stopWidth = map(questionTimerCount,0,questionTimerDuration,0,screenW);
+  if(questionTimerCount<questionTimerDuration){
+    for ( int w = 0; w < stopWidth; w++ ) {
+      int x2 = ( w );
+      int y2 = ( 16);
+      int x3 = ( w );
+      int y3 = ( screenH );
+      display->drawLine( x2 + x , y2 + y , x3 + x , y3 + y);
+    }
+  }
+  else{
+    display->setTextAlignment(TEXT_ALIGN_CENTER);
+    display->setFont(ArialMT_Plain_24);
+    display->drawString(clockCenterX + x , 10 + y, screenQuestion);
+  }
+}
+
+void question_timer_callBack( TimerHandle_t xTimer ){
+  questionTimerCount +=QUESTION_TIMER_CYCLE;
+  if(questionTimerCount>=questionTimerDuration) xTimerStop(QuestionTimer_handle,0); 
+}
+
 void screen_task(void *pvParameter){
   printf("Screen Task is started");
   // The ESP is capable of rendering 60fps in 80Mhz mode
