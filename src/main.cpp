@@ -161,6 +161,12 @@ void callback(char* topic, byte* message, unsigned int length) {
     if(messageTemp == "buttonsActivate"){
       buttonsActive = true;
     }
+    if(messageTemp == "ledStripDeactivate"){
+      ledStripActive = false;
+    }
+    if(messageTemp == "ledsStripActivate"){
+      ledStripActive = true;
+    }
   }
 }
 
@@ -321,8 +327,11 @@ void onPressedButtonLeft()
   lastButtonClicked = e_buttonLeft;
   setButtonLedLastClicked();
   buttonCount[(int)e_buttonLeft]++;
+  
   ledAnimation =  (LedAnimation)(buttonCount[(int)e_buttonLeft]%e_ledAnimations_max);
   ledAnimationColor = CRGB(255,0,0);
+  ui.transitionToFrame(3);
+
   sendButtonPressedMqtt(e_buttonLeft);
 }
 void onPressedButtonRight()
@@ -334,6 +343,7 @@ void onPressedButtonRight()
 
   ledAnimation = e_SpinningSinWave;
   ledAnimationColor = CRGB(0,255,0);
+  ui.switchToFrame(4);
 
   sendButtonPressedMqtt(e_buttonRight);
 }
@@ -437,12 +447,11 @@ void buttons_task(void *pvParameter){
 ///////////////////////////////////////// SCREEN /////////////////////////////////////////////
 //////////////////////////////////////////////////////////////////////////////////////////////
 // Initialize the OLED display using Wire library
-SSD1306Wire display(0x3c, SDA, SCL);   // ADDRESS, SDA, SCL  -  SDA and SCL usually populate automatically based on your board's pins_arduino.h e.g. https://github.com/esp8266/Arduino/blob/master/variants/nodemcu/pins_arduino.h
-OLEDDisplayUi ui ( &display );
 void analogClockFrame(OLEDDisplay *display, OLEDDisplayUiState* state, int16_t x, int16_t y);
 void digitalClockFrame(OLEDDisplay *display, OLEDDisplayUiState* state, int16_t x, int16_t y);
 void batteryFrame(OLEDDisplay *display, OLEDDisplayUiState* state, int16_t x, int16_t y);
 void MQTTFrame(OLEDDisplay *display, OLEDDisplayUiState* state, int16_t x, int16_t y);
+void questionFrame(OLEDDisplay *display, OLEDDisplayUiState* state, int16_t x, int16_t y);
 void clockOverlay(OLEDDisplay *display, OLEDDisplayUiState* state);
 
 int screenW = 128;
@@ -453,10 +462,10 @@ int clockRadius = 23;
 
 // This array keeps function pointers to all frames
 // frames are the single views that slide in
-FrameCallback frames[] = { analogClockFrame, digitalClockFrame, batteryFrame, MQTTFrame};
+FrameCallback frames[] = { analogClockFrame, digitalClockFrame, batteryFrame, MQTTFrame, questionFrame};
 
 // how many frames are there?
-int frameCount = 4;
+int frameCount = 5;
 
 // Overlays are statically drawn on top of a frame eg. a clock
 OverlayCallback overlays[] = { clockOverlay };
@@ -551,12 +560,27 @@ void MQTTFrame(OLEDDisplay *display, OLEDDisplayUiState* state, int16_t x, int16
   display->setFont(ArialMT_Plain_24);
   display->drawString(clockCenterX + x , 16 + y, screenMQTT);
 }
+void questionFrame(OLEDDisplay *display, OLEDDisplayUiState* state, int16_t x, int16_t y) {
+  static int angle = 0;
+  angle = angle + ;
+  display->drawCircle(clockCenterX + x, clockCenterY + y, 2);
+  for ( int z = 0; z < angle%360; z++ ) {
+    //Begin at 0° and stop at 360°
+    float angle = z ;
+    angle = ( angle / 57.29577951 ) ; //Convert degrees to radians
+    int x2 = ( clockCenterX + ( sin(angle) * clockRadius ) );
+    int y2 = ( clockCenterY - ( cos(angle) * clockRadius ) );
+    int x3 = ( clockCenterX );
+    int y3 = ( clockCenterY );
+    display->drawLine( x2 + x , y2 + y , x3 + x , y3 + y);
+  }
+}
 void screen_task(void *pvParameter){
   printf("Screen Task is started");
   // The ESP is capable of rendering 60fps in 80Mhz mode
   // but that won't give you much time for anything else
   // run it in 160Mhz mode or just set it to 30 fps
-  ui.setTargetFPS(60);
+  ui.setTargetFPS(30);
 
   // Customize the active and inactive symbol
   ui.setActiveSymbol(activeSymbol);
@@ -579,10 +603,13 @@ void screen_task(void *pvParameter){
   // Add overlays
   ui.setOverlays(overlays, overlaysCount);
 
+  ui.disableAutoTransition();
+
   // Initialising the UI will init the display too.
   ui.init();
 
   display.flipScreenVertically();
+
   for(;;){
     int remainingTimeBudget = ui.update();
 
@@ -656,42 +683,40 @@ void leds_task(void *pvParameter){
   FastLED.setBrightness( BRIGHTNESS );
   for(;;)
   {
-    switch (ledAnimation)
-    {
-    case e_glowing:
-      //SpinningSinWave(CRGB(255,0,0),4);
-      //vTaskDelay(pdMS_TO_TICKS(100));
-      glowing(ledAnimationColor,5);
-      break;
-    case e_SpinningSinWave:
-      //CenterToRight(0,255,0);
-      //setPixels(CRGB(0,255,0),0, CENTER_LED);
-      SpinningSinWave(ledAnimationColor,4);
-      vTaskDelay(pdMS_TO_TICKS(100));
-      break;
-    case e_pride:
-      pride();
-      FastLED.show();
-      break;
-    case e_allOn:
-      setPixels(ledAnimationColor,0,NUM_LEDS);
-      break;
-    case e_allOff:
-      setPixels(CRGB(0,0,0),0,NUM_LEDS);
-      break;
-    case e_cyclon:
-      cyclon(CENTER_LED, NUM_LEDS);
-      break;
-    case e_cyclon2:
-      cyclon2(0, NUM_LEDS-1);
-      break;
-    default:
-      //setPixels(CRGB(0,0,0),0,NUM_LEDS);
-      pride();
-      FastLED.show();
-      break;
-    }    
-    vTaskDelay(pdMS_TO_TICKS(1000/FRAMES_PER_SECOND));
+    if(ledStripActive){
+      switch (ledAnimation)
+      {
+      case e_glowing:
+        glowing(ledAnimationColor,5);
+        break;
+      case e_SpinningSinWave:
+        SpinningSinWave(ledAnimationColor,4);
+        vTaskDelay(pdMS_TO_TICKS(100));
+        break;
+      case e_pride:
+        pride();
+        FastLED.show();
+        break;
+      case e_allOn:
+        setPixels(ledAnimationColor,0,NUM_LEDS);
+        break;
+      case e_allOff:
+        setPixels(CRGB(0,0,0),0,NUM_LEDS);
+        break;
+      case e_cyclon:
+        cyclon(CENTER_LED, NUM_LEDS);
+        break;
+      case e_cyclon2:
+        cyclonMiddle(0, NUM_LEDS-1);
+        break;
+      default:
+        //setPixels(CRGB(0,0,0),0,NUM_LEDS);
+        pride();
+        FastLED.show();
+        break;
+      }    
+      vTaskDelay(pdMS_TO_TICKS(1000/FRAMES_PER_SECOND));
+    }
   }
 }
 

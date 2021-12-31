@@ -43,6 +43,7 @@ const int resolution = 8;
 
 int lightshow = 0;
 bool buttonsActive = true;
+bool ledStripActive = true;
 
 enum Button{e_none,e_buttonLeft,e_buttonRight, e_joystickUp = 5, e_joystickDown, e_joystickLeft, e_joystickRight, e_joystickCenter, e_button_max};
 int buttonCount[e_button_max];
@@ -56,3 +57,7 @@ EasyButton joystickDown(JOYSTICK_DOWN);
 EasyButton joystickCenter(JOYSTICK_CENTER);
 
 struct tm timeinfo;
+
+//SCREEN
+SSD1306Wire display(0x3c, SDA, SCL);   // ADDRESS, SDA, SCL  -  SDA and SCL usually populate automatically based on your board's pins_arduino.h e.g. https://github.com/esp8266/Arduino/blob/master/variants/nodemcu/pins_arduino.h
+OLEDDisplayUi ui ( &display );
