@@ -26,5 +26,5 @@ void setPixels(CRGB color, int from, int to);
 void setAll(CRGB color);
 void glowing(CRGB color, int speed);
 void cyclon(int start, int end);
-void cyclon2(int start, int end);
+void cyclonMiddle(int start, int end);
 #endif

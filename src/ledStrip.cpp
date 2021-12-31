@@ -149,7 +149,7 @@ void cyclon(int start, int end) {
   }
 }
 
-void cyclon2(int start, int end) { 
+void cyclonMiddle(int start, int end) { 
   static uint8_t hue = 0;
   int middle = (start + end)/2;
   static int8_t index = 0;
