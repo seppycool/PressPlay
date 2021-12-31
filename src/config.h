@@ -12,6 +12,9 @@
 #define JOYSTICK_CENTER 39
 #define BATTERY_PIN 35
 
+#define STATUS_TIMER_CYCLE 5000
+#define QUESTION_TIMER_CYCLE 100
+
 
 const char* ssid       = SSID_NERDLAB;
 const char* password   = PASSWORD_NERDLAB;
@@ -33,6 +36,7 @@ int SOC;  //battery SOC percentage
 int SOCAlert = 10;
 
 String screenMQTT = "<=GREEN \n RED=>";
+String screenQuestion = "TIME IS \n OVER";
 
 
 String macAddress = WiFi.macAddress();
@@ -43,6 +47,10 @@ const int resolution = 8;
 
 int lightshow = 0;
 bool buttonsActive = true;
+bool ledStripActive = true;
+
+int questionTimerCount = 0;
+int questionTimerDuration;
 
 enum Button{e_none,e_buttonLeft,e_buttonRight, e_joystickUp = 5, e_joystickDown, e_joystickLeft, e_joystickRight, e_joystickCenter, e_button_max};
 int buttonCount[e_button_max];
@@ -56,3 +64,7 @@ EasyButton joystickDown(JOYSTICK_DOWN);
 EasyButton joystickCenter(JOYSTICK_CENTER);
 
 struct tm timeinfo;
+
+//SCREEN
+SSD1306Wire display(0x3c, SDA, SCL);   // ADDRESS, SDA, SCL  -  SDA and SCL usually populate automatically based on your board's pins_arduino.h e.g. https://github.com/esp8266/Arduino/blob/master/variants/nodemcu/pins_arduino.h
+OLEDDisplayUi ui ( &display );
