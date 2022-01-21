@@ -69,7 +69,6 @@ void setAll(CRGB color) {
   for(int i = 0; i < NUM_LEDS; i++ ) {
     setPixel(i, color);
   }
-  FastLED.show();
 }
 void setPixels(CRGB color, int from, int to){
   for(int i = from; i<to; i++){
@@ -86,6 +85,19 @@ void glowing(CRGB color, int speed){
   newColor.g = ((sin(glowIndex)*127+128)/255)*color.g;
   newColor.b = ((sin(glowIndex)*127+128)/255)*color.b;
   setAll(newColor);
+  FastLED.show();
+}
+
+void questionClock(CRGB color, int count, int duration){
+  setAll(CRGB(0,0,0));
+  int i = 0;
+  while(i<((NUM_LEDS - (NUM_LEDS*(double)count/(double)duration)))){
+    setPixel(i,color);
+    i++;
+  }
+  double fade = NUM_LEDS*(double)count/(double)duration - (int)(NUM_LEDS*(double)count/(double)duration);
+  setPixel(i,color.fadeLightBy(fade*255));
+  FastLED.show();
 }
 
 void SpinningSinWave(CRGB color, int darkSpotCount){
