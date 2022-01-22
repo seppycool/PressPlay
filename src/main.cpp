@@ -35,10 +35,6 @@
 #include <string>
 #include <iostream>
 
-
-
-
-
 #include "FreeRTOS.h"
 #include "freertos/task.h"
 #include "freertos/timers.h"
@@ -46,6 +42,9 @@
 #include <WiFi.h>
 #include <PubSubClient.h>
 #include "time.h"
+#include <AsyncTCP.h>
+#include <ESPAsyncWebServer.h>
+#include <AsyncElegantOTA.h>
 
 // Include custom images
 #include "images.h"
@@ -66,11 +65,8 @@
 
 #define TEST 1
 
-
-//Verbinden met verschillende WIFI modules
 //Kleuren en animaties aanpassen via MQTT
-//signaal sterkt doorsturen
-//brightness aanpasbaar
+
 
 
 
@@ -88,6 +84,9 @@ void question_timer_callBack( TimerHandle_t xTimer );
 int getLocalTime();
 void setButtonLed(Button button, bool state);
 void setButtonLedLastClicked();
+
+
+AsyncWebServer server(80);
 
 
 void setup() {
@@ -157,6 +156,12 @@ void callback(char* topic, byte* message, unsigned int length) {
     if(newAlertSOC > 0 && newAlertSOC<=100 )
       SOCAlert = newAlertSOC;
   }
+  if (String(topic) == "controllers/output/brightness" ||
+      String(topic) == "controllers/" + macAddress + "/output/brightness") {
+    int brightness = atoi(messageTemp.c_str());
+    if(brightness > 0 && brightness<=255 )
+      FastLED.setBrightness(brightness);
+  }
   #if SCREENACTIVE
   if (String(topic) == "controllers/output/screen" ||
       String(topic) == "controllers/" + macAddress + "/output/screen") {
@@ -219,16 +224,22 @@ void reconnect() {
 
 void WiFiMqtt_task(void *pvParameter){
     //connect to WiFi
-  Serial.printf("Connecting to %s ", ssid);
-  WiFi.begin(ssid, password);
+  Serial.printf("Connecting to %s ", ssid_nerdlab);
+  WiFi.begin(ssid_nerdlab, password_nerdlab);
   int connectionCount = 0;
   while (WiFi.status() != WL_CONNECTED) {
+      connectionCount++;
       vTaskDelay(pdMS_TO_TICKS(500));
       Serial.print(".");
-      if(connectionCount++==10){
-
-        Serial.printf("Connecting to %s ", ssid1);
-        WiFi.begin(ssid1, password1);
+      if(connectionCount==10){
+        mqtt_server = (char*)mqtt_private;
+        Serial.printf("Connecting to %s ", ssid_private);
+        WiFi.begin(ssid_private, password_private);
+      }
+      if(connectionCount==20){
+        mqtt_server = (char*)mqtt_pressplay;
+        Serial.printf("Connecting to %s ", ssid_pressplay);
+        WiFi.begin(ssid_pressplay, password_pressplay);
       }
 
   }
@@ -240,9 +251,15 @@ void WiFiMqtt_task(void *pvParameter){
   configTime(gmtOffset_sec, daylightOffset_sec, ntpServer);
   getLocalTime();
 
-  //client.setServer(mqtt_server_nerdlab,1883);
   client.setServer(mqtt_server, 1883);
   client.setCallback(callback);
+
+  server.on("/", HTTP_GET, [](AsyncWebServerRequest *request) {
+    request->send(200, "text/plain", "Hi! I am ESP32.");
+  });
+  AsyncElegantOTA.begin(&server);    // Start ElegantOTA
+  server.begin();
+  Serial.println("HTTP server started");
 
 
   for(;;){
@@ -352,6 +369,12 @@ void onPressedButtonLeft()
   
   ledAnimation =  (LedAnimation)(buttonCount[(int)e_buttonLeft]%e_ledAnimations_max);
   ledAnimationColor = CRGB(255,0,0);
+  if(ledAnimation == e_questionClock){
+    questionTimerCount = 0;
+    questionTimerDuration = 5000;
+    if( xTimerStart(QuestionTimer_handle, 0 ) != pdPASS )
+      Serial.println("Timer not started");
+  }
 
   sendButtonPressedMqtt(e_buttonLeft);
 }
@@ -363,7 +386,7 @@ void onPressedButtonRight()
   buttonCount[(int)e_buttonRight]++;
 
   ledAnimation = e_questionClock;
-  ledAnimationColor = CRGB(0,255,0);
+  ledAnimationColor = CRGB(0,0,255);
   
   questionTimerCount = 0;
   questionTimerDuration = 5000;
@@ -700,6 +723,14 @@ void status_timer_callBack( TimerHandle_t xTimer ){
     String payload = (String)SOC;
     client.publish(topic.c_str(),payload.c_str());
 
+    topic = "controllers/" + macAddress + "/diagnostic/IP";
+    payload = (String)WiFi.localIP().toString();
+    client.publish(topic.c_str(),payload.c_str());
+
+    topic = "controllers/" + macAddress + "/diagnostic/RSSI";
+    payload = (String)WiFi.RSSI();
+    client.publish(topic.c_str(),payload.c_str());
+
     topic = "controllers/" + macAddress + "/diagnostic/lastClicked";
     payload = (int)lastButtonClicked;
     client.publish(topic.c_str(),payload.c_str());
@@ -770,7 +801,10 @@ void leds_task(void *pvParameter){
         break;
       case e_questionClock:
         if(questionTimerCount<questionTimerDuration) questionClock(ledAnimationColor, questionTimerCount, questionTimerDuration);
-        else pride();
+        else{
+          pride();
+          FastLED.show();
+        }
 
         break;
       default:
