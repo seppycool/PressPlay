@@ -35,10 +35,10 @@
 #include <string>
 #include <iostream>
 
-// Include the correct display library
-// For a connection via I2C using Wire include
-#include <Wire.h>  // Only needed for Arduino 1.6.5 and earlier
-#include "SSD1306Wire.h" // legacy include: `#include "SSD1306.h"`
+
+
+
+
 #include "FreeRTOS.h"
 #include "freertos/task.h"
 #include "freertos/timers.h"
@@ -47,24 +47,39 @@
 #include <PubSubClient.h>
 #include "time.h"
 
-// Include the UI lib
-#include "OLEDDisplayUi.h"
-
 // Include custom images
 #include "images.h"
 #include "config.h"
 #include "wificonfig.h"
 
 #include "ledStrip.h"
+#include <Wire.h>  // Only needed for Arduino 1.6.5 and earlier
+
+#if SCREENACTIVE
+// Include the correct display library
+// Include the UI lib
+// For a connection via I2C using Wire include
+#include "SSD1306Wire.h" // legacy include: `#include "SSD1306.h"`
+#include "OLEDDisplayUi.h"
+#endif
+
 
 #define TEST 1
+
+
+//Verbinden met verschillende WIFI modules
+//Kleuren en animaties aanpassen via MQTT
+//signaal sterkt doorsturen
+//brightness aanpasbaar
 
 
 
 // Use the corresponding display class:
 void WiFiMqtt_task(void *pvParameter);
 void buttons_task(void *pvParameter);
+#if SCREENACTIVE
 void screen_task(void *pvParameter);
+#endif
 void leds_task(void *pvParameter);
 TimerHandle_t StatusTimer_handle;
 void status_timer_callBack( TimerHandle_t xTimer );
@@ -81,8 +96,10 @@ void setup() {
   pinMode(BATTERY_PIN, INPUT);
 
   xTaskCreatePinnedToCore(&WiFiMqtt_task,"WifiMqttTask",4048,NULL,1,NULL,1);
-  xTaskCreatePinnedToCore(&buttons_task,"goButtonTask",2048,NULL,5,NULL,1);
+  xTaskCreatePinnedToCore(&buttons_task,"buttonTask",2048,NULL,5,NULL,1);
+  #if SCREENACTIVE
   xTaskCreatePinnedToCore(&screen_task,"screenTask",2048,NULL,5,NULL,1);
+  #endif
   xTaskCreatePinnedToCore(&leds_task,"ledsTask",2048,NULL,5,NULL,1);
   StatusTimer_handle = xTimerCreate("StatusTimerTask",pdMS_TO_TICKS(STATUS_TIMER_CYCLE),pdTRUE,( void * ) 0,status_timer_callBack);
   QuestionTimer_handle = xTimerCreate("QuestionTimerTask",pdMS_TO_TICKS(QUESTION_TIMER_CYCLE),pdTRUE,( void * ) 1,question_timer_callBack);
@@ -140,10 +157,12 @@ void callback(char* topic, byte* message, unsigned int length) {
     if(newAlertSOC > 0 && newAlertSOC<=100 )
       SOCAlert = newAlertSOC;
   }
+  #if SCREENACTIVE
   if (String(topic) == "controllers/output/screen" ||
       String(topic) == "controllers/" + macAddress + "/output/screen") {
     screenMQTT = messageTemp.c_str();
   }
+  #endif
   if (String(topic) == "controllers/output/status" ||
       String(topic) == "controllers/" + macAddress + "/output/status") {
     if(messageTemp == "battery"){
@@ -333,7 +352,6 @@ void onPressedButtonLeft()
   
   ledAnimation =  (LedAnimation)(buttonCount[(int)e_buttonLeft]%e_ledAnimations_max);
   ledAnimationColor = CRGB(255,0,0);
-  ui.transitionToFrame(3);
 
   sendButtonPressedMqtt(e_buttonLeft);
 }
@@ -344,10 +362,9 @@ void onPressedButtonRight()
   setButtonLedLastClicked();
   buttonCount[(int)e_buttonRight]++;
 
-  ledAnimation = e_SpinningSinWave;
+  ledAnimation = e_questionClock;
   ledAnimationColor = CRGB(0,255,0);
   
-  ui.switchToFrame(5);
   questionTimerCount = 0;
   questionTimerDuration = 5000;
   if( xTimerStart(QuestionTimer_handle, 0 ) != pdPASS )
@@ -356,6 +373,7 @@ void onPressedButtonRight()
   sendButtonPressedMqtt(e_buttonRight);
 }
 
+#if SCREENACTIVE
 void onPressedJoystickLeft(){
   buttonCount[(int)e_joystickLeft]++;
   sendButtonPressedMqtt(e_joystickLeft);
@@ -375,13 +393,8 @@ void onPressedJoystickDown(){
 void onPressedJoystickCenter(){
   buttonCount[(int)e_joystickCenter]++;
   sendButtonPressedMqtt(e_joystickCenter);
-
-  #ifdef TEST
-    lastButtonClicked = e_none;
-    setButtonLedLastClicked();
-  #endif
-  ledAnimation = e_pride;
 }
+#endif
 
 void buttons_task(void *pvParameter){
   printf("button task is started");
@@ -400,6 +413,7 @@ void buttons_task(void *pvParameter){
   buttonRight.begin();
   buttonRight.onPressed(onPressedButtonRight);
 
+#if SCREENACTIVE
   //JOYSTICK LEFT
   joystickLeft.begin();
   joystickLeft.onPressed(onPressedJoystickLeft);
@@ -419,16 +433,19 @@ void buttons_task(void *pvParameter){
   //JOYSTICK CENTER
   joystickCenter.begin();
   joystickCenter.onPressed(onPressedJoystickCenter);
+#endif
 
   for(;;){
     if(buttonsActive){
       buttonLeft.read();
       buttonRight.read();
+#if SCREENACTIVE
       joystickLeft.read();
       joystickRight.read();
       joystickUp.read();
       joystickDown.read();
       joystickCenter.read();
+#endif
     }
     if(lightshow){
       switch (lightshow)
@@ -449,8 +466,23 @@ void buttons_task(void *pvParameter){
     vTaskDelay(pdMS_TO_TICKS(10));
   } 
 }
+int getLocalTime()
+{
+  if(!getLocalTime(&timeinfo)){
+    //Serial.println("Failed to obtain time");
+    return 1;
+  }
+  //Serial.println(&timeinfo, "%A, %B %d %Y %H:%M:%S");
+  return 0;
+}
+
+void question_timer_callBack( TimerHandle_t xTimer ){
+  questionTimerCount +=QUESTION_TIMER_CYCLE;
+  if(questionTimerCount>=questionTimerDuration) xTimerStop(QuestionTimer_handle,0); 
+}
 
 
+#if SCREENACTIVE
 //////////////////////////////////////////////////////////////////////////////////////////////
 ///////////////////////////////////////// SCREEN /////////////////////////////////////////////
 //////////////////////////////////////////////////////////////////////////////////////////////
@@ -480,15 +512,7 @@ int frameCount = 6;
 OverlayCallback overlays[] = { clockOverlay };
 int overlaysCount = 1;
 
-int getLocalTime()
-{
-  if(!getLocalTime(&timeinfo)){
-    //Serial.println("Failed to obtain time");
-    return 1;
-  }
-  //Serial.println(&timeinfo, "%A, %B %d %Y %H:%M:%S");
-  return 0;
-}
+
 
 // utility function for digital clock display: prints leading 0
 String twoDigits(int digits) {
@@ -609,11 +633,6 @@ void questionFrame2(OLEDDisplay *display, OLEDDisplayUiState* state, int16_t x, 
   }
 }
 
-void question_timer_callBack( TimerHandle_t xTimer ){
-  questionTimerCount +=QUESTION_TIMER_CYCLE;
-  if(questionTimerCount>=questionTimerDuration) xTimerStop(QuestionTimer_handle,0); 
-}
-
 void screen_task(void *pvParameter){
   printf("Screen Task is started");
   // The ESP is capable of rendering 60fps in 80Mhz mode
@@ -656,6 +675,7 @@ void screen_task(void *pvParameter){
     vTaskDelay(pdMS_TO_TICKS(10));
   } 
 }
+#endif
 
 
 void status_timer_callBack( TimerHandle_t xTimer ){
@@ -747,6 +767,11 @@ void leds_task(void *pvParameter){
         break;
       case e_cyclon2:
         cyclonMiddle(0, NUM_LEDS-1);
+        break;
+      case e_questionClock:
+        if(questionTimerCount<questionTimerDuration) questionClock(ledAnimationColor, questionTimerCount, questionTimerDuration);
+        else pride();
+
         break;
       default:
         //setPixels(CRGB(0,0,0),0,NUM_LEDS);
