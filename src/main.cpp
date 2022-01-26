@@ -67,6 +67,12 @@
 
 //Kleuren en animaties aanpassen via MQTT
 
+//clock --> done
+//pulseren via snelheid en kleur
+//0 naar 100% via snelheid/tijd en kleur
+//rainbow
+//change color on button
+//god mode
 
 
 
@@ -94,12 +100,12 @@ void setup() {
   Serial.println();
   pinMode(BATTERY_PIN, INPUT);
 
-  xTaskCreatePinnedToCore(&WiFiMqtt_task,"WifiMqttTask",4048,NULL,1,NULL,1);
-  xTaskCreatePinnedToCore(&buttons_task,"buttonTask",2048,NULL,5,NULL,1);
+  xTaskCreatePinnedToCore(&WiFiMqtt_task,"WifiMqttTask",4048,NULL,5,NULL,1);
+  xTaskCreatePinnedToCore(&buttons_task,"buttonTask",2048,NULL,1,NULL,1);
   #if SCREENACTIVE
-  xTaskCreatePinnedToCore(&screen_task,"screenTask",2048,NULL,5,NULL,1);
+  xTaskCreatePinnedToCore(&screen_task,"screenTask",2048,NULL,1,NULL,1);
   #endif
-  xTaskCreatePinnedToCore(&leds_task,"ledsTask",2048,NULL,5,NULL,1);
+  xTaskCreatePinnedToCore(&leds_task,"ledsTask",2048,NULL,1,NULL,1);
   StatusTimer_handle = xTimerCreate("StatusTimerTask",pdMS_TO_TICKS(STATUS_TIMER_CYCLE),pdTRUE,( void * ) 0,status_timer_callBack);
   QuestionTimer_handle = xTimerCreate("QuestionTimerTask",pdMS_TO_TICKS(QUESTION_TIMER_CYCLE),pdTRUE,( void * ) 1,question_timer_callBack);
   if( xTimerStart(StatusTimer_handle, 0 ) != pdPASS )
@@ -135,14 +141,14 @@ void callback(char* topic, byte* message, unsigned int length) {
   if (String(topic) == "controllers/output/buttonLedLeft" ||
       String(topic) == "controllers/" + macAddress + "/output/buttonLedLeft") {
     int dutycycle = atoi(messageTemp.c_str());
-    if(dutycycle > 0 && dutycycle<=255 ){
+    if(dutycycle >= 0 && dutycycle<=255 ){
       ledcWrite(ledChannel1,dutycycle);
     }
   }
   if (String(topic) == "controllers/output/buttonLedRight" ||
       String(topic) == "controllers/" + macAddress + "/output/buttonLedRight") {
     int dutycycle = atoi(messageTemp.c_str());
-    if(dutycycle > 0 && dutycycle<=255 ){
+    if(dutycycle >= 0 && dutycycle<=255 ){
       ledcWrite(ledChannel2,dutycycle);
     }
   }
@@ -153,15 +159,34 @@ void callback(char* topic, byte* message, unsigned int length) {
   if (String(topic) == "controllers/output/alertSOC" ||
       String(topic) == "controllers/" + macAddress + "/output/alertSOC") {
     int newAlertSOC = atoi(messageTemp.c_str());
-    if(newAlertSOC > 0 && newAlertSOC<=100 )
+    if(newAlertSOC >= 0 && newAlertSOC<=100 )
       SOCAlert = newAlertSOC;
   }
-  if (String(topic) == "controllers/output/brightness" ||
-      String(topic) == "controllers/" + macAddress + "/output/brightness") {
+  if (String(topic) == "controllers/output/ledStrip/brightness" ||
+      String(topic) == "controllers/" + macAddress + "/output/ledStrip/brightness") {
     int brightness = atoi(messageTemp.c_str());
-    if(brightness > 0 && brightness<=255 )
+    if(brightness >= 0 && brightness<=255 )
       FastLED.setBrightness(brightness);
   }
+  if (String(topic) == "controllers/output/ledStrip/color" ||
+      String(topic) == "controllers/" + macAddress + "/output/ledStrip/color") {
+    long ledColor = strtol(messageTemp.c_str(), NULL, 16);
+    if(ledColor >= 0 && ledColor <= 0xFFFFFF)
+       ledAnimationColor = CRGB(ledColor);
+  }
+  if (String(topic) == "controllers/output/ledStrip/animation" ||
+      String(topic) == "controllers/" + macAddress + "/output/ledStrip/animation") {
+    int Animation = atoi(messageTemp.c_str());
+    if(Animation >= 0 && Animation < (int)e_ledAnimations_max)
+       ledAnimation = (LedAnimation)Animation;
+  }
+  if (String(topic) == "controllers/output/ledStrip/delay" ||
+      String(topic) == "controllers/" + macAddress + "/output/ledStrip/delay") {
+    int ledDelay = atoi(messageTemp.c_str());
+    if(ledAnimationDelay > 0)
+       ledAnimationDelay = ledDelay;
+  }
+  
   #if SCREENACTIVE
   if (String(topic) == "controllers/output/screen" ||
       String(topic) == "controllers/" + macAddress + "/output/screen") {
@@ -206,8 +231,11 @@ void reconnect() {
       Serial.println("connected");
       // Subscribe
       client.subscribe("controllers/output/#");
+      client.subscribe("controllers/output/ledStrip/#");
 
       String topicOutputMacAdress = "controllers/"+ macAddress + "/output/#";
+      client.subscribe(topicOutputMacAdress.c_str());
+      topicOutputMacAdress = "controllers/"+ macAddress + "/output/ledStrip/#";
       client.subscribe(topicOutputMacAdress.c_str());
 
       status_timer_callBack(StatusTimer_handle);
@@ -739,6 +767,22 @@ void status_timer_callBack( TimerHandle_t xTimer ){
     payload = (int)(millis());
     client.publish(topic.c_str(),payload.c_str());
 
+    topic = "controllers/"+ macAddress + "/diagnostic/ledColor";
+    int ledColorRed = ledAnimationColor.r;
+    int ledColorGreen = ledAnimationColor.g;
+    int ledColorBlue = ledAnimationColor.b;
+    int ledColor = (ledColorRed<<16) + (ledColorGreen<<8) + ledColorBlue;
+    payload = (int)(ledColor);
+    client.publish(topic.c_str(),payload.c_str());
+
+    topic = "controllers/"+ macAddress + "/diagnostic/ledAnimation";
+    payload = (int)(ledAnimation);
+    client.publish(topic.c_str(),payload.c_str());
+
+    topic = "controllers/"+ macAddress + "/diagnostic/ledDelay";
+    payload = (int)(ledAnimationDelay);
+    client.publish(topic.c_str(),payload.c_str());
+
     for(int i = e_none; i< e_button_max; i++){
       topic = "controllers/" + macAddress + "/diagnostic/buttonCount"+ i;
       payload = (int)buttonCount[i];
@@ -777,11 +821,11 @@ void leds_task(void *pvParameter){
       switch (ledAnimation)
       {
       case e_glowing:
-        glowing(ledAnimationColor,5);
+        glowing(ledAnimationColor,1);
         break;
       case e_SpinningSinWave:
-        SpinningSinWave(ledAnimationColor,4);
-        vTaskDelay(pdMS_TO_TICKS(100));
+        SpinningSinWave(ledAnimationColor,2);
+        //vTaskDelay(pdMS_TO_TICKS(100));
         break;
       case e_pride:
         pride();
@@ -797,7 +841,7 @@ void leds_task(void *pvParameter){
         cyclon(CENTER_LED, NUM_LEDS);
         break;
       case e_cyclon2:
-        cyclonMiddle(0, NUM_LEDS-1);
+        cyclonMiddle(0, NUM_LEDS,ledAnimationColor);
         break;
       case e_questionClock:
         if(questionTimerCount<questionTimerDuration) questionClock(ledAnimationColor, questionTimerCount, questionTimerDuration);
@@ -805,7 +849,6 @@ void leds_task(void *pvParameter){
           pride();
           FastLED.show();
         }
-
         break;
       default:
         //setPixels(CRGB(0,0,0),0,NUM_LEDS);
@@ -813,7 +856,7 @@ void leds_task(void *pvParameter){
         FastLED.show();
         break;
       }    
-      vTaskDelay(pdMS_TO_TICKS(1000/FRAMES_PER_SECOND));
+      vTaskDelay(pdMS_TO_TICKS(ledAnimationDelay));
     }
   }
 }

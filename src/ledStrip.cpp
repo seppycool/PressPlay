@@ -7,6 +7,7 @@
 
 CRGB ledStrip[NUM_LEDS];
 LedAnimation ledAnimation = e_allOff;
+int ledAnimationDelay = 1000/FRAMES_PER_SECOND;
 CRGB ledAnimationColor;
 
 void pride() 
@@ -161,22 +162,22 @@ void cyclon(int start, int end) {
   }
 }
 
-void cyclonMiddle(int start, int end) { 
+void cyclonMiddle(int start, int end, CRGB color) { 
   static uint8_t hue = 0;
   int middle = (start + end)/2;
   static int8_t index = 0;
   static bool direction = true;
   // First slide the led in one direction
   // Set the i'th led to red 
-  ledStrip[middle + index] = CHSV(hue++, 255, 255);
-  ledStrip[middle - index] = CHSV(hue++, 255, 255);
+  setPixel(middle + index, color);
+  setPixel(middle - index, color);
+  //ledStrip[middle + index] = CHSV(hue++, 255, 255);
+  //ledStrip[middle - index] = CHSV(hue++, 255, 255);
   // Show the leds
   FastLED.show(); 
   // now that we've shown the leds, reset the i'th led to black
   // leds[i] = CRGB::Black;
   fadeall();
-  // Wait a little bit before we loop around and do it again
-  vTaskDelay(pdMS_TO_TICKS(100));
   
   if(direction){
     index++;
