@@ -13,12 +13,19 @@
 #define QUESTION_TIMER_CYCLE 100
 
 
-const char* ssid       = SSID_NERDLAB;
-const char* password   = PASSWORD_NERDLAB;
+const char* ssid_nerdlab        = SSID_NERDLAB;
+const char* password_nerdlab    = PASSWORD_NERDLAB;
+const char* mqtt_nerdlab        = MQTT_SERVER_NERDLAB;
 
-const char* ssid1       = SSID_PRIVATE;
-const char* password1   = PASSWORD_PRIVATE;
-const char* mqtt_server = MQTT_SERVER;
+const char* ssid_private        = SSID_PRIVATE;
+const char* password_private    = PASSWORD_PRIVATE;
+const char* mqtt_private        = MQTT_SERVER_PRIVATE;
+
+const char* ssid_pressplay      = SSID_PRESSPLAY;
+const char* password_pressplay  = PASSWORD_PRESSPLAY;
+const char* mqtt_pressplay      = MQTT_SERVER_PRESSPLAY;
+
+char* mqtt_server = (char*)mqtt_nerdlab;
 
 const char* ntpServer = "pool.ntp.org";
 const long  gmtOffset_sec = 3600;
