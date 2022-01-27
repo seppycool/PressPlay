@@ -397,7 +397,7 @@ void onPressedButtonLeft()
   
   ledAnimation =  (LedAnimation)(buttonCount[(int)e_buttonLeft]%e_ledAnimations_max);
   ledAnimationColor = CRGB(255,0,0);
-  if(ledAnimation == e_questionClock){
+  if(ledAnimation == e_questionClock || ledAnimation == e_oneGlow){
     questionTimerCount = 0;
     questionTimerDuration = 5000;
     if( xTimerStart(QuestionTimer_handle, 0 ) != pdPASS )
@@ -820,12 +820,30 @@ void leds_task(void *pvParameter){
     if(ledStripActive){
       switch (ledAnimation)
       {
+      case e_allOff:
+        setPixels(CRGB(0,0,0),0,NUM_LEDS);
+        FastLED.show();
+        break;
+      case e_cyclon:
+        cyclon(CENTER_LED, NUM_LEDS,ledAnimationColor);
+        break;
+      case e_cyclon2:
+        cyclonMiddle(0, NUM_LEDS,ledAnimationColor);
+        break;
+      case e_cyclonLeft:
+        cyclon(CENTER_LED, NUM_LEDS, CRGB::Blue);
+        break;
+      case e_cyclonRight:
+        cyclon(0, CENTER_LED, CRGB::Yellow);
+        break;
+      case e_oneGlow:
+        oneGlow(ledAnimationColor, questionTimerCount, questionTimerDuration);
+        break;
       case e_glowing:
-        glowing(ledAnimationColor,1);
+        glowing(ledAnimationColor);
         break;
       case e_SpinningSinWave:
-        SpinningSinWave(ledAnimationColor,2);
-        //vTaskDelay(pdMS_TO_TICKS(100));
+        SpinningSinWave(ledAnimationColor,3);
         break;
       case e_pride:
         pride();
@@ -833,15 +851,8 @@ void leds_task(void *pvParameter){
         break;
       case e_allOn:
         setPixels(ledAnimationColor,0,NUM_LEDS);
-        break;
-      case e_allOff:
-        setPixels(CRGB(0,0,0),0,NUM_LEDS);
-        break;
-      case e_cyclon:
-        cyclon(CENTER_LED, NUM_LEDS);
-        break;
-      case e_cyclon2:
-        cyclonMiddle(0, NUM_LEDS,ledAnimationColor);
+        addGlitter(80);
+        FastLED.show();
         break;
       case e_questionClock:
         if(questionTimerCount<questionTimerDuration) questionClock(ledAnimationColor, questionTimerCount, questionTimerDuration);
@@ -850,14 +861,35 @@ void leds_task(void *pvParameter){
           FastLED.show();
         }
         break;
+      case e_twinkle:
+        drawTwinkles();
+        FastLED.show();
+        break;
+      case e_confetti:
+        confetti();
+        FastLED.show();
+        break;
+      case e_rainbow:
+        rainbow();
+        FastLED.show();
+        break;
+      case e_rainbowGlitter:
+        rainbowWithGlitter();
+        FastLED.show();
+        break;
       default:
-        //setPixels(CRGB(0,0,0),0,NUM_LEDS);
         pride();
         FastLED.show();
         break;
       }    
-      vTaskDelay(pdMS_TO_TICKS(ledAnimationDelay));
+      vTaskDelay(pdMS_TO_TICKS(animationDelay[(int)ledAnimation]));
     }
+    else{
+      setPixels(CRGB(0,0,0),0,NUM_LEDS);
+      FastLED.show();
+      vTaskDelay(pdMS_TO_TICKS(100));
+    }
+
   }
 }
 
