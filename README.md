@@ -23,12 +23,22 @@ controllers/output/buttonLedLeft | dutycycle (0-255) | Set dutycycle left button
 controllers/output/buttonLedRight | dutycycle (0-255) | Set dutycycle right button led going from 0/off to 255/on
 controllers/output/lightshow | lightshow number (int) | Start lightshow
 controllers/output/alertSOC | alertSOC (0-100)% | Set threshold SOC for low battery
+controllers/output/questionTime | question Duration  (ms) | Set duration of the questions in ms
+controllers/output/ledStrip/brightness | brightness (0-255) | set the brightness of the ledstrip.
+controllers/output/ledStrip/color | colorValue (000000-FFFFFF) | set the animation color of the ledstrip.
+controllers/output/ledStrip/animation | animation number (0-15) | set the animation of the ledstrip.
+controllers/output/ledStrip/delay | delay (int) | set the delay for the currrent animation.
 controllers/output/screen | Screentext (String) | Set a text on the screen of the controller
+controllers/output/status | "statusUpdateActivate" | deactivate status update
+controllers/output/status | "statusUpdateDeactivate" | activate status update
+controllers/output/status | "sendUpdate" | update status message
 controllers/output/status | "battery" | lightup the controller if SOC is lower than alertSOC
 controllers/output/status | "lastButton" | lightup the last pressed button
 controllers/output/status | "resetLed" | set both buttonleds to off state
 controllers/output/status | "buttonsDeactivate" | deactivate all buttons
 controllers/output/status | "buttonsActivate" | activate all buttons
+controllers/output/status | "ledStripDeactivate" | deactivate ledstrip
+controllers/output/status | "ledsStripActivate" | activate ledstrip
 controllers/[macAdress]/output/# | # | same behaviour as other but specific for a controller with macAdress
 
 # Publications

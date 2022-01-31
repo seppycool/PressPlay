@@ -13,7 +13,8 @@
 #define FRAMES_PER_SECOND 60
 extern int ledAnimationDelay;
 extern CRGB ledStrip[NUM_LEDS];
-enum LedAnimation{e_allOff, e_cyclon, e_cyclon2, e_cyclonLeft, e_cyclonRight, e_oneGlow, e_glowing, e_SpinningSinWave, e_pride, e_allOn, e_questionClock, e_twinkle, e_confetti, e_rainbow, e_rainbowGlitter, e_ledAnimations_max};
+enum LedAnimation{e_allOff, e_cyclon, e_cyclon2, e_cyclonLeft, e_cyclonRight, e_oneGlow, e_oneGlowRSSIDelay, e_glowing, e_SpinningSinWave, e_pride, e_allOn, e_questionClock, e_twinkle, e_confetti, e_rainbow, e_rainbowGlitter, e_ledAnimations_max};
+extern int animationStartDelay;
 extern int animationDelay[e_ledAnimations_max];
 extern LedAnimation ledAnimation;
 extern CRGB ledAnimationColor;

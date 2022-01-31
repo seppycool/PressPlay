@@ -3,10 +3,10 @@
 
 #define SCREENACTIVE 0
 
-#define BUTTONLEFT_PIN 14
-#define BUTTONLEFT_LED 12
-#define BUTTONRIGHT_PIN 27
-#define BUTTONRIGHT_LED 25
+#define BUTTONLEFT_PIN 19
+#define BUTTONLEFT_LED 18
+#define BUTTONRIGHT_PIN 22
+#define BUTTONRIGHT_LED 21
 #define BATTERY_PIN 35
 
 #define STATUS_TIMER_CYCLE 5000
@@ -35,9 +35,11 @@ const int   daylightOffset_sec = 3600;
 const int batteryCurve[2][BAT_CURVE_COUNT] = { {5000, 4200,  4060, 3980, 3920, 3870, 3820, 3790, 3770, 3740, 3680, 3450, 3000, 0},
                                                {100 , 100 ,    90,   80,   70,   60,   50,   40,   30,   20,   10,    5,    0, 0}};
 
+bool sendStatusUpdateActive = true;
 float VBAT;  // battery voltage from ESP32 ADC read
 int SOC;  //battery SOC percentage
 int SOCAlert = 10;
+double RSSI;
 
 String macAddress = WiFi.macAddress();
 const int freq = 5000;
@@ -51,6 +53,7 @@ bool ledStripActive = true;
 
 int questionTimerCount = 0;
 int questionTimerDuration;
+int questionTime = 10000;
 
 #if SCREENACTIVE 
 enum Button{e_none,e_buttonLeft,e_buttonRight, e_joystickUp = 5, e_joystickDown, e_joystickLeft, e_joystickRight, e_joystickCenter, e_button_max};

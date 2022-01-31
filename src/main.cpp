@@ -87,9 +87,11 @@ TimerHandle_t StatusTimer_handle;
 void status_timer_callBack( TimerHandle_t xTimer );
 TimerHandle_t QuestionTimer_handle;
 void question_timer_callBack( TimerHandle_t xTimer );
+void initQuestionTimer(int duration, int waitTime = 0);
 int getLocalTime();
 void setButtonLed(Button button, bool state);
 void setButtonLedLastClicked();
+void sendStatusUpdate();
 
 
 AsyncWebServer server(80);
@@ -162,6 +164,12 @@ void callback(char* topic, byte* message, unsigned int length) {
     if(newAlertSOC >= 0 && newAlertSOC<=100 )
       SOCAlert = newAlertSOC;
   }
+  if (String(topic) == "controllers/output/questionTime" ||
+      String(topic) == "controllers/" + macAddress + "/output/questionTime") {
+    int newQuestionTime = atoi(messageTemp.c_str());
+    if(newQuestionTime >= 0)
+      questionTime = newQuestionTime;
+  }
   if (String(topic) == "controllers/output/ledStrip/brightness" ||
       String(topic) == "controllers/" + macAddress + "/output/ledStrip/brightness") {
     int brightness = atoi(messageTemp.c_str());
@@ -177,14 +185,23 @@ void callback(char* topic, byte* message, unsigned int length) {
   if (String(topic) == "controllers/output/ledStrip/animation" ||
       String(topic) == "controllers/" + macAddress + "/output/ledStrip/animation") {
     int Animation = atoi(messageTemp.c_str());
-    if(Animation >= 0 && Animation < (int)e_ledAnimations_max)
-       ledAnimation = (LedAnimation)Animation;
+    if(Animation >= 0 && Animation < (int)e_ledAnimations_max){
+      if(Animation == (int)e_questionClock || Animation == (int)e_oneGlow){
+        initQuestionTimer(questionTime);
+      }
+      if(Animation == (int)e_oneGlowRSSIDelay){
+        animationStartDelay = (WiFi.RSSI()*-100);
+        initQuestionTimer(questionTime);
+      }
+      ledAnimation = (LedAnimation)Animation;
+    }
+       
   }
   if (String(topic) == "controllers/output/ledStrip/delay" ||
       String(topic) == "controllers/" + macAddress + "/output/ledStrip/delay") {
     int ledDelay = atoi(messageTemp.c_str());
-    if(ledAnimationDelay > 0)
-       ledAnimationDelay = ledDelay;
+    if(ledDelay > 0)
+       animationDelay[(int)ledAnimation] = ledDelay;
   }
   
   #if SCREENACTIVE
@@ -195,9 +212,20 @@ void callback(char* topic, byte* message, unsigned int length) {
   #endif
   if (String(topic) == "controllers/output/status" ||
       String(topic) == "controllers/" + macAddress + "/output/status") {
+    if(messageTemp == "statusUpdateActivate"){
+      sendStatusUpdateActive = true;
+    }
+    if(messageTemp == "statusUpdateDeactivate"){
+      sendStatusUpdateActive = false;
+    }
+    if(messageTemp == "sendUpdate"){
+      sendStatusUpdate();
+    }
     if(messageTemp == "battery"){
       if(SOC<SOCAlert){
         lightshow = 1;
+        ledAnimationColor = CRGB::Red;
+        ledAnimation = e_glowing;
       }
     }
     if(messageTemp == "lastButton"){
@@ -274,6 +302,9 @@ void WiFiMqtt_task(void *pvParameter){
   Serial.println("");
   Serial.print(" CONNECTED WITH IP ADRESS: ");
   Serial.println(WiFi.localIP());
+  Serial.print( "RSSI: ");
+  RSSI = WiFi.RSSI();
+  Serial.println(RSSI);
   
   //init and get the time
   configTime(gmtOffset_sec, daylightOffset_sec, ntpServer);
@@ -375,13 +406,13 @@ void sendButtonPressedMqtt(Button buttonPressed){
     client.publish(topicTest.c_str(),payloadTest.c_str());
     #endif
 
-    String topic = "controllers/"+ macAddress + "/input";
-    String payload = "controllers,id="+macAddress +" button=" + (int)buttonPressed;
-    client.publish(topic.c_str(),payload.c_str());
+    // String topic = "controllers/"+ macAddress + "/input";
+    // String payload = "controllers,id="+macAddress +" button=" + (int)buttonPressed;
+    // client.publish(topic.c_str(),payload.c_str());
 
-    topic = "controllers/"+ macAddress + "/input";
-    payload = "buttonPress,id="+macAddress +" button_name=" + (int)buttonPressed;
-    client.publish(topic.c_str(),payload.c_str());
+    // topic = "controllers/"+ macAddress + "/input";
+    // payload = "buttonPress,id="+macAddress +" button_name=" + (int)buttonPressed;
+    // client.publish(topic.c_str(),payload.c_str());
   }
   else{
     Serial.println("ERROR: can't send MQTT message --> not connected");
@@ -395,14 +426,11 @@ void onPressedButtonLeft()
   setButtonLedLastClicked();
   buttonCount[(int)e_buttonLeft]++;
   
-  ledAnimation =  (LedAnimation)(buttonCount[(int)e_buttonLeft]%e_ledAnimations_max);
-  ledAnimationColor = CRGB(255,0,0);
-  if(ledAnimation == e_questionClock || ledAnimation == e_oneGlow){
-    questionTimerCount = 0;
-    questionTimerDuration = 5000;
-    if( xTimerStart(QuestionTimer_handle, 0 ) != pdPASS )
-      Serial.println("Timer not started");
-  }
+  // ledAnimation =  (LedAnimation)(buttonCount[(int)e_buttonLeft]%e_ledAnimations_max);
+  // ledAnimationColor = CRGB::Yellow;
+  // if(ledAnimation == e_questionClock || ledAnimation == e_oneGlow){
+  //   initQuestionTimer(questionTime);
+  // }
 
   sendButtonPressedMqtt(e_buttonLeft);
 }
@@ -413,13 +441,10 @@ void onPressedButtonRight()
   setButtonLedLastClicked();
   buttonCount[(int)e_buttonRight]++;
 
-  ledAnimation = e_questionClock;
-  ledAnimationColor = CRGB(0,0,255);
-  
-  questionTimerCount = 0;
-  questionTimerDuration = 5000;
-  if( xTimerStart(QuestionTimer_handle, 0 ) != pdPASS )
-    Serial.println("Timer not started");
+  // ledAnimation = e_questionClock;
+  // ledAnimationColor = CRGB::Blue;
+  // initQuestionTimer(questionTime);
+
 
   sendButtonPressedMqtt(e_buttonRight);
 }
@@ -530,6 +555,13 @@ int getLocalTime()
 void question_timer_callBack( TimerHandle_t xTimer ){
   questionTimerCount +=QUESTION_TIMER_CYCLE;
   if(questionTimerCount>=questionTimerDuration) xTimerStop(QuestionTimer_handle,0); 
+}
+
+void initQuestionTimer(int duration, int waitTime){
+  questionTimerCount = 0;
+  questionTimerDuration = duration;
+  if( xTimerStart(QuestionTimer_handle, pdMS_TO_TICKS(waitTime) ) != pdPASS )
+    Serial.println("Timer not started");
 }
 
 
@@ -728,23 +760,7 @@ void screen_task(void *pvParameter){
 }
 #endif
 
-
-void status_timer_callBack( TimerHandle_t xTimer ){
-  //calculate the voltage and SOC off the battery
-  VBAT = (float)(analogRead(BATTERY_PIN)) / 4095*2*3.3*1.1;
-  int VBATmV = (int)(VBAT*1000);
-  int indexMin=1;
-  //search for interpolation values
-  while(batteryCurve[0][indexMin]>VBATmV){
-    indexMin++;
-  }
-  SOC = map(VBATmV,
-            batteryCurve[0][indexMin],
-            batteryCurve[0][indexMin-1],
-            batteryCurve[1][indexMin],
-            batteryCurve[1][indexMin-1]
-            );
-
+void sendStatusUpdate(){
   if(client.connected()){
     #ifdef TEST
     String topic = "controllers/" + macAddress + "/diagnostic/battery";
@@ -756,7 +772,7 @@ void status_timer_callBack( TimerHandle_t xTimer ){
     client.publish(topic.c_str(),payload.c_str());
 
     topic = "controllers/" + macAddress + "/diagnostic/RSSI";
-    payload = (String)WiFi.RSSI();
+    payload = (String)((int)RSSI);
     client.publish(topic.c_str(),payload.c_str());
 
     topic = "controllers/" + macAddress + "/diagnostic/lastClicked";
@@ -790,23 +806,47 @@ void status_timer_callBack( TimerHandle_t xTimer ){
     }
     #endif
 
-    topic = "controllers/"+ macAddress + "/diagnostic";
-    payload = "controllers,id="+macAddress +" SOC=" + (String)SOC;
-    client.publish(topic.c_str(),payload.c_str());
+    // topic = "controllers/"+ macAddress + "/diagnostic";
+    // payload = "controllers,id="+macAddress +" SOC=" + (String)SOC;
+    // client.publish(topic.c_str(),payload.c_str());
 
-    topic = "controllers/"+ macAddress + "/diagnostic";
-    payload = "controllers,id="+macAddress +" lastClicked=" + (int)lastButtonClicked;
-    client.publish(topic.c_str(),payload.c_str());
+    // topic = "controllers/"+ macAddress + "/diagnostic";
+    // payload = "controllers,id="+macAddress +" lastClicked=" + (int)lastButtonClicked;
+    // client.publish(topic.c_str(),payload.c_str());
 
-    for(int i = e_none; i< e_button_max; i++){
-      topic = "controllers/" + macAddress + "/diagnostic";
-      payload = "controllers,id=" + macAddress + " buttonCount" + (int)i + "=" + (int)buttonCount[i];
-      client.publish(topic.c_str(),payload.c_str());
-    }
+    // for(int i = e_none; i< e_button_max; i++){
+    //   topic = "controllers/" + macAddress + "/diagnostic";
+    //   payload = "controllers,id=" + macAddress + " buttonCount" + (int)i + "=" + (int)buttonCount[i];
+    //   client.publish(topic.c_str(),payload.c_str());
+    // }
 
-    topic = "controllers/"+ macAddress + "/im_alive";
-    payload = "controllers,id="+macAddress +" active=" + (int)(millis()/1000);
-    client.publish(topic.c_str(),payload.c_str());
+    // topic = "controllers/"+ macAddress + "/im_alive";
+    // payload = "controllers,id="+macAddress +" active=" + (int)(millis()/1000);
+    // client.publish(topic.c_str(),payload.c_str());
+  }
+}
+
+
+void status_timer_callBack( TimerHandle_t xTimer ){
+  //calculate the voltage and SOC off the battery
+  VBAT = (float)(analogRead(BATTERY_PIN)) / 4095*2*3.3*1.1;
+  int VBATmV = (int)(VBAT*1000);
+  int indexMin=1;
+  //search for interpolation values
+  while(batteryCurve[0][indexMin]>VBATmV){
+    indexMin++;
+  }
+  SOC = map(VBATmV,
+            batteryCurve[0][indexMin],
+            batteryCurve[0][indexMin-1],
+            batteryCurve[1][indexMin],
+            batteryCurve[1][indexMin-1]
+            );
+
+  RSSI = RSSI*0.95 + WiFi.RSSI()*0.05;
+
+  if(sendStatusUpdateActive){
+    sendStatusUpdate();
   }
 }
 
@@ -831,10 +871,23 @@ void leds_task(void *pvParameter){
         cyclonMiddle(0, NUM_LEDS,ledAnimationColor);
         break;
       case e_cyclonLeft:
-        cyclon(CENTER_LED, NUM_LEDS, CRGB::Blue);
+        cyclon(CENTER_LED, NUM_LEDS, CRGB::Yellow);
         break;
       case e_cyclonRight:
-        cyclon(0, CENTER_LED, CRGB::Yellow);
+        cyclon(0, CENTER_LED, CRGB::Blue);
+        break;
+      case e_oneGlowRSSIDelay:
+        if(animationStartDelay){
+          setPixels(CRGB(0,0,0),0,NUM_LEDS);
+          FastLED.show();
+          animationStartDelay -= animationDelay[(int)ledAnimation];
+          if(animationStartDelay<=0){
+            initQuestionTimer(questionTime);
+          } 
+        }
+        else{
+          oneGlow(ledAnimationColor, questionTimerCount, questionTimerDuration);
+        }
         break;
       case e_oneGlow:
         oneGlow(ledAnimationColor, questionTimerCount, questionTimerDuration);
