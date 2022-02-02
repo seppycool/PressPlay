@@ -7,7 +7,7 @@
 
 CRGB ledStrip[NUM_LEDS];
 LedAnimation ledAnimation = e_allOff;
-int animationDelay[e_ledAnimations_max] = {100,50,100,50,50,100,100,10,100,100,100,100,100, 100, 100, 100};
+int animationDelay[e_ledAnimations_max] = {100,50,100,50,50,100,100,10,100,100,100,100,100, 100, 100, 100, 100};
 int animationStartDelay = 0;
 int ledAnimationDelay = 1000/FRAMES_PER_SECOND;
 CRGB ledAnimationColor = CRGB::Red;

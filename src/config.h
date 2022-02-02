@@ -49,6 +49,7 @@ const int resolution = 8;
 
 int lightshow = 0;
 bool buttonsActive = true;
+bool buttonsAnimationColorActive = false;
 bool ledStripActive = true;
 
 int questionTimerCount = 0;

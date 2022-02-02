@@ -15,6 +15,27 @@ This will connect to wifi and MQTT to send all data
 8 | Joystick Right
 9 | Joystick Center
 
+# Animations
+| Number | Animation
+--- | ---
+0 | All off
+1 | Cyclon
+2 | Cyclon 2
+3 | Cyclon Left
+4 | Cyclon Right
+5 | One Glow
+6 | One Glow With RSSI Delay
+7 | Glowing
+8 | Spinning Sin Wave
+9 | Pride
+10 | All on
+11 | Question Clock
+12 | Twinkle
+13 | Confetti
+14 | Rainbow
+15 | Rainbow Glitter 
+16 | All on Glitter
+
 
 # Subscriptions
 | Topic | Payload | Description
@@ -29,7 +50,7 @@ controllers/output/ledStrip/color | colorValue (000000-FFFFFF) | set the animati
 controllers/output/ledStrip/animation | animation number (0-15) | set the animation of the ledstrip.
 controllers/output/ledStrip/delay | delay (int) | set the delay for the currrent animation.
 controllers/output/screen | Screentext (String) | Set a text on the screen of the controller
-controllers/output/status | "statusUpdateActivate" | deactivate status update
+controllers/output/status | "statusUpdateActivate" | deactivate status update (i am alive keeps active)
 controllers/output/status | "statusUpdateDeactivate" | activate status update
 controllers/output/status | "sendUpdate" | update status message
 controllers/output/status | "battery" | lightup the controller if SOC is lower than alertSOC
@@ -37,6 +58,8 @@ controllers/output/status | "lastButton" | lightup the last pressed button
 controllers/output/status | "resetLed" | set both buttonleds to off state
 controllers/output/status | "buttonsDeactivate" | deactivate all buttons
 controllers/output/status | "buttonsActivate" | activate all buttons
+controllers/output/status | "buttonsAnimationColorDeactivate" | disable switching color depending on buttons pressed
+controllers/output/status | "buttonsAnimationColorActivate" | enable switching color depending on buttons pressed
 controllers/output/status | "ledStripDeactivate" | deactivate ledstrip
 controllers/output/status | "ledsStripActivate" | activate ledstrip
 controllers/[macAdress]/output/# | # | same behaviour as other but specific for a controller with macAdress
