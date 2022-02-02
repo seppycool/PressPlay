@@ -241,6 +241,12 @@ void callback(char* topic, byte* message, unsigned int length) {
     if(messageTemp == "buttonsActivate"){
       buttonsActive = true;
     }
+    if(messageTemp == "buttonsAnimationColorDeactivate"){
+      buttonsAnimationColorActive = false;
+    }
+    if(messageTemp == "buttonsAnimationColorActivate"){
+      buttonsAnimationColorActive = true;
+    }
     if(messageTemp == "ledStripDeactivate"){
       ledStripActive = false;
     }
@@ -425,13 +431,15 @@ void onPressedButtonLeft()
   lastButtonClicked = e_buttonLeft;
   setButtonLedLastClicked();
   buttonCount[(int)e_buttonLeft]++;
+
+  if(buttonsAnimationColorActive)
+    ledAnimationColor = CRGB::Yellow;
   
   // ledAnimation =  (LedAnimation)(buttonCount[(int)e_buttonLeft]%e_ledAnimations_max);
   // ledAnimationColor = CRGB::Yellow;
   // if(ledAnimation == e_questionClock || ledAnimation == e_oneGlow){
   //   initQuestionTimer(questionTime);
   // }
-
   sendButtonPressedMqtt(e_buttonLeft);
 }
 void onPressedButtonRight()
@@ -441,11 +449,12 @@ void onPressedButtonRight()
   setButtonLedLastClicked();
   buttonCount[(int)e_buttonRight]++;
 
+  if(buttonsAnimationColorActive)
+    ledAnimationColor = CRGB::Blue;
+
   // ledAnimation = e_questionClock;
   // ledAnimationColor = CRGB::Blue;
   // initQuestionTimer(questionTime);
-
-
   sendButtonPressedMqtt(e_buttonRight);
 }
 
@@ -779,10 +788,6 @@ void sendStatusUpdate(){
     payload = (int)lastButtonClicked;
     client.publish(topic.c_str(),payload.c_str());
 
-    topic = "controllers/"+ macAddress + "/diagnostic/im_alive";
-    payload = (int)(millis());
-    client.publish(topic.c_str(),payload.c_str());
-
     topic = "controllers/"+ macAddress + "/diagnostic/ledColor";
     int ledColorRed = ledAnimationColor.r;
     int ledColorGreen = ledAnimationColor.g;
@@ -845,6 +850,13 @@ void status_timer_callBack( TimerHandle_t xTimer ){
 
   RSSI = RSSI*0.95 + WiFi.RSSI()*0.05;
 
+  if(client.connected()){
+    String topic = "controllers/"+ macAddress + "/diagnostic/im_alive";
+    int activeTime = millis();
+    String payload = (String)activeTime;
+    client.publish(topic.c_str(),payload.c_str());
+  }
+
   if(sendStatusUpdateActive){
     sendStatusUpdate();
   }
@@ -904,7 +916,6 @@ void leds_task(void *pvParameter){
         break;
       case e_allOn:
         setPixels(ledAnimationColor,0,NUM_LEDS);
-        addGlitter(80);
         FastLED.show();
         break;
       case e_questionClock:
@@ -930,6 +941,10 @@ void leds_task(void *pvParameter){
         rainbowWithGlitter();
         FastLED.show();
         break;
+      case e_allOnGlitter:
+        setPixels(ledAnimationColor,0,NUM_LEDS);
+        addGlitter(80);
+        FastLED.show();
       default:
         pride();
         FastLED.show();
