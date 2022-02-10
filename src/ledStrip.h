@@ -9,7 +9,7 @@
 #define NUM_LEDS    28
 #define CENTER_LED  13
 
-#define BRIGHTNESS  200
+#define BRIGHTNESS  10
 #define FRAMES_PER_SECOND 60
 extern int ledAnimationDelay;
 extern CRGB ledStrip[NUM_LEDS];

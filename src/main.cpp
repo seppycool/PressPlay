@@ -64,17 +64,7 @@
 
 
 #define TEST 1
-
-//Kleuren en animaties aanpassen via MQTT
-
-//clock --> done
-//pulseren via snelheid en kleur
-//0 naar 100% via snelheid/tijd en kleur
-//rainbow
-//change color on button
-//god mode
-
-
+#define DEBUG 0
 
 // Use the corresponding display class:
 void WiFiMqtt_task(void *pvParameter);
@@ -92,6 +82,7 @@ int getLocalTime();
 void setButtonLed(Button button, bool state);
 void setButtonLedLastClicked();
 void sendStatusUpdate();
+int calculateSOC();
 
 
 AsyncWebServer server(80);
@@ -101,6 +92,8 @@ void setup() {
   Serial.begin(115200);
   Serial.println();
   pinMode(BATTERY_PIN, INPUT);
+  //Calculate Starting SOC
+  SOC = calculateSOC();
 
   xTaskCreatePinnedToCore(&WiFiMqtt_task,"WifiMqttTask",4048,NULL,5,NULL,1);
   xTaskCreatePinnedToCore(&buttons_task,"buttonTask",2048,NULL,1,NULL,1);
@@ -112,7 +105,6 @@ void setup() {
   QuestionTimer_handle = xTimerCreate("QuestionTimerTask",pdMS_TO_TICKS(QUESTION_TIMER_CYCLE),pdTRUE,( void * ) 1,question_timer_callBack);
   if( xTimerStart(StatusTimer_handle, 0 ) != pdPASS )
     Serial.println("Timer not started");
-  status_timer_callBack(StatusTimer_handle);
 }
 
 
@@ -190,7 +182,7 @@ void callback(char* topic, byte* message, unsigned int length) {
         initQuestionTimer(questionTime);
       }
       if(Animation == (int)e_oneGlowRSSIDelay){
-        animationStartDelay = (WiFi.RSSI()*-100);
+        animationStartDelay = (WiFi.RSSI()*-250);
         initQuestionTimer(questionTime);
       }
       ledAnimation = (LedAnimation)Animation;
@@ -273,6 +265,7 @@ void reconnect() {
       client.subscribe(topicOutputMacAdress.c_str());
 
       status_timer_callBack(StatusTimer_handle);
+      sendStatusUpdate();
 
     } else {
       Serial.print("failed, rc=");
@@ -285,24 +278,27 @@ void reconnect() {
 }
 
 void WiFiMqtt_task(void *pvParameter){
-    //connect to WiFi
-  Serial.printf("Connecting to %s ", ssid_nerdlab);
-  WiFi.begin(ssid_nerdlab, password_nerdlab);
+  //connect to WiFi
+  mqtt_server = (char*)mqtt_pressplay;
+  Serial.printf("Connecting to %s ", ssid_pressplay);
+  WiFi.begin(ssid_pressplay, password_pressplay);
   int connectionCount = 0;
   while (WiFi.status() != WL_CONNECTED) {
       connectionCount++;
       vTaskDelay(pdMS_TO_TICKS(500));
       Serial.print(".");
+#if DEBUG
       if(connectionCount==10){
         mqtt_server = (char*)mqtt_private;
         Serial.printf("Connecting to %s ", ssid_private);
         WiFi.begin(ssid_private, password_private);
       }
       if(connectionCount==20){
-        mqtt_server = (char*)mqtt_pressplay;
-        Serial.printf("Connecting to %s ", ssid_pressplay);
-        WiFi.begin(ssid_pressplay, password_pressplay);
+        mqtt_server = (char*)mqtt_nerdlab;
+        Serial.printf("Connecting to %s ", ssid_nerdlab);
+        WiFi.begin(ssid_nerdlab, password_nerdlab);
       }
+#endif
 
   }
   Serial.println("");
@@ -435,11 +431,13 @@ void onPressedButtonLeft()
   if(buttonsAnimationColorActive)
     ledAnimationColor = CRGB::Yellow;
   
-  // ledAnimation =  (LedAnimation)(buttonCount[(int)e_buttonLeft]%e_ledAnimations_max);
-  // ledAnimationColor = CRGB::Yellow;
-  // if(ledAnimation == e_questionClock || ledAnimation == e_oneGlow){
-  //   initQuestionTimer(questionTime);
-  // }
+  if(demoMode){
+    ledAnimation =  (LedAnimation)(buttonCount[(int)e_buttonLeft]%e_ledAnimations_max);
+    if(ledAnimation == e_questionClock || ledAnimation == e_oneGlow){
+      initQuestionTimer(questionTime);
+    }
+  }
+ 
   sendButtonPressedMqtt(e_buttonLeft);
 }
 void onPressedButtonRight()
@@ -451,6 +449,10 @@ void onPressedButtonRight()
 
   if(buttonsAnimationColorActive)
     ledAnimationColor = CRGB::Blue;
+  
+  if(demoMode){
+    ledAnimationColor = ledAnimationColor.setHue((buttonCount[(int)e_buttonRight]*25)%255);
+  }
 
   // ledAnimation = e_questionClock;
   // ledAnimationColor = CRGB::Blue;
@@ -490,6 +492,13 @@ void buttons_task(void *pvParameter){
   ledcWrite(ledChannel1,0);
   buttonLeft.begin();
   buttonLeft.onPressed(onPressedButtonLeft);
+  
+  //enable Demo Mode
+  if(buttonLeft.isPressed()){
+    demoMode = true;
+    buttonsActive = true;
+    ledAnimation = e_rainbow;
+  }
 
   //RIGHT
   ledcSetup(ledChannel2, freq, resolution);
@@ -497,6 +506,7 @@ void buttons_task(void *pvParameter){
   ledcWrite(ledChannel2,0);
   buttonRight.begin();
   buttonRight.onPressed(onPressedButtonRight);
+
 
 #if SCREENACTIVE
   //JOYSTICK LEFT
@@ -771,13 +781,8 @@ void screen_task(void *pvParameter){
 
 void sendStatusUpdate(){
   if(client.connected()){
-    #ifdef TEST
-    String topic = "controllers/" + macAddress + "/diagnostic/battery";
-    String payload = (String)SOC;
-    client.publish(topic.c_str(),payload.c_str());
-
-    topic = "controllers/" + macAddress + "/diagnostic/IP";
-    payload = (String)WiFi.localIP().toString();
+    String topic = "controllers/" + macAddress + "/diagnostic/IP";
+    String payload = (String)WiFi.localIP().toString();
     client.publish(topic.c_str(),payload.c_str());
 
     topic = "controllers/" + macAddress + "/diagnostic/RSSI";
@@ -809,30 +814,10 @@ void sendStatusUpdate(){
       payload = (int)buttonCount[i];
       client.publish(topic.c_str(),payload.c_str());
     }
-    #endif
-
-    // topic = "controllers/"+ macAddress + "/diagnostic";
-    // payload = "controllers,id="+macAddress +" SOC=" + (String)SOC;
-    // client.publish(topic.c_str(),payload.c_str());
-
-    // topic = "controllers/"+ macAddress + "/diagnostic";
-    // payload = "controllers,id="+macAddress +" lastClicked=" + (int)lastButtonClicked;
-    // client.publish(topic.c_str(),payload.c_str());
-
-    // for(int i = e_none; i< e_button_max; i++){
-    //   topic = "controllers/" + macAddress + "/diagnostic";
-    //   payload = "controllers,id=" + macAddress + " buttonCount" + (int)i + "=" + (int)buttonCount[i];
-    //   client.publish(topic.c_str(),payload.c_str());
-    // }
-
-    // topic = "controllers/"+ macAddress + "/im_alive";
-    // payload = "controllers,id="+macAddress +" active=" + (int)(millis()/1000);
-    // client.publish(topic.c_str(),payload.c_str());
   }
 }
 
-
-void status_timer_callBack( TimerHandle_t xTimer ){
+int calculateSOC(){
   //calculate the voltage and SOC off the battery
   VBAT = (float)(analogRead(BATTERY_PIN)) / 4095*2*3.3*1.1;
   int VBATmV = (int)(VBAT*1000);
@@ -841,12 +826,18 @@ void status_timer_callBack( TimerHandle_t xTimer ){
   while(batteryCurve[0][indexMin]>VBATmV){
     indexMin++;
   }
-  SOC = map(VBATmV,
-            batteryCurve[0][indexMin],
-            batteryCurve[0][indexMin-1],
-            batteryCurve[1][indexMin],
-            batteryCurve[1][indexMin-1]
-            );
+
+  int SOCCalculated = map( VBATmV,
+                                batteryCurve[0][indexMin],
+                                batteryCurve[0][indexMin-1],
+                                batteryCurve[1][indexMin],
+                                batteryCurve[1][indexMin-1]
+                                );
+  return SOCCalculated;
+}
+
+void status_timer_callBack( TimerHandle_t xTimer ){
+  SOC = SOC*0.9 +  0.1 * calculateSOC();
 
   RSSI = RSSI*0.95 + WiFi.RSSI()*0.05;
 
@@ -854,6 +845,10 @@ void status_timer_callBack( TimerHandle_t xTimer ){
     String topic = "controllers/"+ macAddress + "/diagnostic/im_alive";
     int activeTime = millis();
     String payload = (String)activeTime;
+    client.publish(topic.c_str(),payload.c_str());
+
+    topic = "controllers/" + macAddress + "/diagnostic/battery";
+    payload = (String)SOC;
     client.publish(topic.c_str(),payload.c_str());
   }
 
@@ -921,7 +916,11 @@ void leds_task(void *pvParameter){
       case e_questionClock:
         if(questionTimerCount<questionTimerDuration) questionClock(ledAnimationColor, questionTimerCount, questionTimerDuration);
         else{
+#if DEBUG
           pride();
+#else
+          setAll(CRGB::Black);
+#endif
           FastLED.show();
         }
         break;
