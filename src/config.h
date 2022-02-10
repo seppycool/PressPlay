@@ -25,7 +25,7 @@ const char* ssid_pressplay      = SSID_PRESSPLAY;
 const char* password_pressplay  = PASSWORD_PRESSPLAY;
 const char* mqtt_pressplay      = MQTT_SERVER_PRESSPLAY;
 
-char* mqtt_server = (char*)mqtt_nerdlab;
+char* mqtt_server = (char*)mqtt_pressplay;
 
 const char* ntpServer = "pool.ntp.org";
 const long  gmtOffset_sec = 3600;
@@ -35,11 +35,12 @@ const int   daylightOffset_sec = 3600;
 const int batteryCurve[2][BAT_CURVE_COUNT] = { {5000, 4200,  4060, 3980, 3920, 3870, 3820, 3790, 3770, 3740, 3680, 3450, 3000, 0},
                                                {100 , 100 ,    90,   80,   70,   60,   50,   40,   30,   20,   10,    5,    0, 0}};
 
-bool sendStatusUpdateActive = true;
+bool sendStatusUpdateActive = false;
 float VBAT;  // battery voltage from ESP32 ADC read
 int SOC;  //battery SOC percentage
-int SOCAlert = 10;
+int SOCAlert = 50;
 double RSSI;
+bool demoMode = false;
 
 String macAddress = WiFi.macAddress();
 const int freq = 5000;
@@ -48,7 +49,7 @@ const int ledChannel2 = 1;
 const int resolution = 8;
 
 int lightshow = 0;
-bool buttonsActive = true;
+bool buttonsActive = false;
 bool buttonsAnimationColorActive = false;
 bool ledStripActive = true;
 
