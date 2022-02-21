@@ -49,7 +49,7 @@
 #include "cert.h"
 
 String FirmwareVer = {
-  "1.2"
+  "1.4"
 };
 #define URL_fw_Version "https://raw.githubusercontent.com/seppycool/PressPlay/master/OTA/bin_version.txt"
 #define URL_fw_Bin "https://raw.githubusercontent.com/seppycool/PressPlay/master/OTA/firmware.bin"
