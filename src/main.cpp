@@ -313,7 +313,7 @@ void WiFiMqtt_task(void *pvParameter){
   //connect to WiFi
   mqtt_server = (char*)mqtt_pressplay;
 
-  //Set >ifi Callback events
+  //Set Wifi Callback events
   WiFi.onEvent(WiFiStationConnected, SYSTEM_EVENT_STA_CONNECTED);
   WiFi.onEvent(WiFiGotIP, SYSTEM_EVENT_STA_GOT_IP);
   WiFi.onEvent(WiFiStationDisconnected, SYSTEM_EVENT_STA_DISCONNECTED);
