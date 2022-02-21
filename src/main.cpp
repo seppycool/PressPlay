@@ -42,9 +42,17 @@
 #include <WiFi.h>
 #include <PubSubClient.h>
 #include "time.h"
-#include <AsyncTCP.h>
-#include <ESPAsyncWebServer.h>
-#include <AsyncElegantOTA.h>
+#include <HTTPClient.h>
+#include <HTTPUpdate.h>
+#include <HttpsOTAUpdate.h>
+#include <WiFiClientSecure.h>
+#include "cert.h"
+
+String FirmwareVer = {
+  "1.0"
+};
+#define URL_fw_Version "https://raw.githubusercontent.com/seppycool/PressPlay/master/OTA/bin_version.txt"
+#define URL_fw_Bin "https://raw.githubusercontent.com/seppycool/PressPlay/master/OTA/firmware.bin"
 
 // Include custom images
 #include "images.h"
@@ -85,7 +93,7 @@ void sendStatusUpdate();
 int calculateSOC();
 
 
-AsyncWebServer server(80);
+//AsyncWebServer server(80);
 
 
 void setup() {
@@ -95,7 +103,7 @@ void setup() {
   //Calculate Starting SOC
   SOC = calculateSOC();
 
-  xTaskCreatePinnedToCore(&WiFiMqtt_task,"WifiMqttTask",4048,NULL,5,NULL,1);
+  xTaskCreatePinnedToCore(&WiFiMqtt_task,"WifiMqttTask",8000/*4048*/,NULL,5,NULL,1);
   xTaskCreatePinnedToCore(&buttons_task,"buttonTask",2048,NULL,1,NULL,1);
   #if SCREENACTIVE
   xTaskCreatePinnedToCore(&screen_task,"screenTask",2048,NULL,1,NULL,1);
@@ -277,9 +285,39 @@ void reconnect() {
   }
 }
 
+int FirmwareVersionCheck();
+void firmwareUpdate();
+
+void WiFiStationConnected(WiFiEvent_t event, WiFiEventInfo_t info){
+  Serial.println("Connected to AP successfully!");
+}
+
+void WiFiGotIP(WiFiEvent_t event, WiFiEventInfo_t info){
+  Serial.println("");
+  Serial.print(" CONNECTED WITH IP ADRESS: ");
+  Serial.println(WiFi.localIP());
+  Serial.print( "RSSI: ");
+  RSSI = WiFi.RSSI();
+  Serial.println(RSSI);
+}
+
+void WiFiStationDisconnected(WiFiEvent_t event, WiFiEventInfo_t info){
+  Serial.println("Disconnected from WiFi access point");
+  Serial.print("WiFi lost connection. Reason: ");
+  Serial.println(info.disconnected.reason);
+  Serial.println("Trying to Reconnect");
+  WiFi.begin(ssid_pressplay, password_pressplay);
+}
+
 void WiFiMqtt_task(void *pvParameter){
   //connect to WiFi
   mqtt_server = (char*)mqtt_pressplay;
+
+  //Set >ifi Callback events
+  WiFi.onEvent(WiFiStationConnected, SYSTEM_EVENT_STA_CONNECTED);
+  WiFi.onEvent(WiFiGotIP, SYSTEM_EVENT_STA_GOT_IP);
+  WiFi.onEvent(WiFiStationDisconnected, SYSTEM_EVENT_STA_DISCONNECTED);
+
   Serial.printf("Connecting to %s ", ssid_pressplay);
   WiFi.begin(ssid_pressplay, password_pressplay);
   int connectionCount = 0;
@@ -287,12 +325,13 @@ void WiFiMqtt_task(void *pvParameter){
       connectionCount++;
       vTaskDelay(pdMS_TO_TICKS(500));
       Serial.print(".");
-#if DEBUG
+
       if(connectionCount==10){
         mqtt_server = (char*)mqtt_private;
         Serial.printf("Connecting to %s ", ssid_private);
         WiFi.begin(ssid_private, password_private);
       }
+#if DEBUG
       if(connectionCount==20){
         mqtt_server = (char*)mqtt_nerdlab;
         Serial.printf("Connecting to %s ", ssid_nerdlab);
@@ -301,12 +340,6 @@ void WiFiMqtt_task(void *pvParameter){
 #endif
 
   }
-  Serial.println("");
-  Serial.print(" CONNECTED WITH IP ADRESS: ");
-  Serial.println(WiFi.localIP());
-  Serial.print( "RSSI: ");
-  RSSI = WiFi.RSSI();
-  Serial.println(RSSI);
   
   //init and get the time
   configTime(gmtOffset_sec, daylightOffset_sec, ntpServer);
@@ -315,12 +348,15 @@ void WiFiMqtt_task(void *pvParameter){
   client.setServer(mqtt_server, 1883);
   client.setCallback(callback);
 
-  server.on("/", HTTP_GET, [](AsyncWebServerRequest *request) {
-    request->send(200, "text/plain", "Hi! I am ESP32.");
-  });
-  AsyncElegantOTA.begin(&server);    // Start ElegantOTA
-  server.begin();
-  Serial.println("HTTP server started");
+  //server.on("/", HTTP_GET, [](AsyncWebServerRequest *request) {
+  //  request->send(200, "text/plain", "Hi! I am ESP32.");
+  //});
+  //AsyncElegantOTA.begin(&server);    // Start ElegantOTA
+  //server.begin();
+  //Serial.println("HTTP server started");
+  if(FirmwareVersionCheck()){
+    firmwareUpdate();
+  }
 
 
   for(;;){
@@ -330,6 +366,91 @@ void WiFiMqtt_task(void *pvParameter){
     client.loop();
     vTaskDelay(pdMS_TO_TICKS(10));
   } 
+}
+
+void firmwareUpdate(void) {
+  WiFiClientSecure client;
+  client.setCACert(rootCACertificate2);
+  //HttpsOTA.begin(URL_fw_Bin, rootCACertificate);
+  //httpUpdate.setLedPin(LED_BUILTIN, LOW);
+  t_httpUpdate_return ret = httpUpdate.update(client, URL_fw_Bin);
+  /*while(HttpsOTA.status() == HTTPS_OTA_UPDATING){
+    Serial.println("Updating Software");
+  }
+  if(HttpsOTA.status() == HTTPS_OTA_SUCCESS){
+    Serial.println("update Succesfull, reboot system");
+    ESP.restart();
+  }
+  if(HttpsOTA.status() == HTTPS_OTA_FAIL){
+    Serial.println("update Failed");
+  }*/
+
+  switch (ret) {
+  case HTTP_UPDATE_FAILED:
+    Serial.printf("HTTP_UPDATE_FAILD Error (%d): %s\n", httpUpdate.getLastError(), httpUpdate.getLastErrorString().c_str());
+    break;
+
+  case HTTP_UPDATE_NO_UPDATES:
+    Serial.println("HTTP_UPDATE_NO_UPDATES");
+    break;
+
+  case HTTP_UPDATE_OK:
+    Serial.println("HTTP_UPDATE_OK");
+    break;
+  }
+}
+
+int FirmwareVersionCheck(void) {
+  String payload;
+  int httpCode = 0;
+  String fwurl = "";
+  fwurl += URL_fw_Version;
+  fwurl += "?";
+  fwurl += String(rand());
+  Serial.println(fwurl);
+  WiFiClientSecure * client = new WiFiClientSecure;
+
+  if (client) 
+  {
+    client -> setCACert(rootCACertificate2);
+
+    // Add a scoping block for HTTPClient https to make sure it is destroyed before WiFiClientSecure *client is 
+    HTTPClient https;
+
+    if (https.begin( * client, fwurl)) 
+    { // HTTPS      
+      Serial.print("[HTTPS] GET...\n");
+      // start connection and send HTTP header
+      vTaskDelay(pdMS_TO_TICKS(100));
+      httpCode = https.GET();
+      vTaskDelay(pdMS_TO_TICKS(100));
+      if (httpCode == HTTP_CODE_OK) // if version received
+      {
+        payload = https.getString(); // save received version
+      } else {
+        Serial.print("error in downloading version file:");
+        Serial.println(httpCode);
+      }
+      https.end();
+    }
+    delete client;
+  }
+      
+  if (httpCode == HTTP_CODE_OK) // if version received
+  {
+    payload.trim();
+    if (payload.equals(FirmwareVer)) {
+      Serial.printf("\nDevice already on latest firmware version:%s\n", FirmwareVer);
+      return 0;
+    } 
+    else 
+    {
+      Serial.println(payload);
+      Serial.println("New firmware detected");
+      return 1;
+    }
+  } 
+  return 0;  
 }
 
 ///////////////////////////////////////////////////////////////////////////////////////////////
@@ -820,6 +941,8 @@ void sendStatusUpdate(){
 int calculateSOC(){
   //calculate the voltage and SOC off the battery
   VBAT = (float)(analogRead(BATTERY_PIN)) / 4095*2*3.3*1.1;
+  Serial.print("Battery voltage: ");
+  Serial.println(VBAT);
   int VBATmV = (int)(VBAT*1000);
   int indexMin=1;
   //search for interpolation values
@@ -838,7 +961,8 @@ int calculateSOC(){
 
 void status_timer_callBack( TimerHandle_t xTimer ){
   SOC = SOC*0.9 +  0.1 * calculateSOC();
-
+  Serial.print("SOC: ");
+  Serial.println(SOC);
   RSSI = RSSI*0.95 + WiFi.RSSI()*0.05;
 
   if(client.connected()){
