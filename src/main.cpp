@@ -100,10 +100,8 @@ void setup() {
   Serial.begin(115200);
   Serial.println();
   pinMode(BATTERY_PIN, INPUT);
-  //Calculate Starting SOC
-  SOC = calculateSOC();
 
-  xTaskCreatePinnedToCore(&WiFiMqtt_task,"WifiMqttTask",8000/*4048*/,NULL,5,NULL,1);
+  xTaskCreatePinnedToCore(&WiFiMqtt_task,"WifiMqttTask",8192,NULL,5,NULL,1);
   xTaskCreatePinnedToCore(&buttons_task,"buttonTask",2048,NULL,1,NULL,1);
   #if SCREENACTIVE
   xTaskCreatePinnedToCore(&screen_task,"screenTask",2048,NULL,1,NULL,1);
@@ -111,7 +109,7 @@ void setup() {
   xTaskCreatePinnedToCore(&leds_task,"ledsTask",2048,NULL,1,NULL,1);
   StatusTimer_handle = xTimerCreate("StatusTimerTask",pdMS_TO_TICKS(STATUS_TIMER_CYCLE),pdTRUE,( void * ) 0,status_timer_callBack);
   QuestionTimer_handle = xTimerCreate("QuestionTimerTask",pdMS_TO_TICKS(QUESTION_TIMER_CYCLE),pdTRUE,( void * ) 1,question_timer_callBack);
-  if( xTimerStart(StatusTimer_handle, 0 ) != pdPASS )
+  if( xTimerStart(StatusTimer_handle, pdMS_TO_TICKS(1000) ) != pdPASS )
     Serial.println("Timer not started");
 }
 
@@ -950,6 +948,11 @@ int calculateSOC(){
 }
 
 void status_timer_callBack( TimerHandle_t xTimer ){
+  if(SOC == -1){
+    //Calculate Starting SOC
+    SOC = calculateSOC();
+  }
+
   SOC = SOC*0.9 +  0.1 * calculateSOC();
   Serial.print("SOC: ");
   Serial.println(SOC);

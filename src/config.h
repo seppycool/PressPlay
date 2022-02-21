@@ -37,7 +37,7 @@ const int batteryCurve[2][BAT_CURVE_COUNT] = { {5000, 4200,  4060, 3980, 3920, 3
 
 bool sendStatusUpdateActive = false;
 float VBAT;  // battery voltage from ESP32 ADC read
-int SOC;  //battery SOC percentage
+int SOC = -1;  //battery SOC percentage
 int SOCAlert = 50;
 double RSSI;
 bool demoMode = false;
