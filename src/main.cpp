@@ -49,7 +49,7 @@
 #include "cert.h"
 
 String FirmwareVer = {
-  "1.0"
+  "1.2"
 };
 #define URL_fw_Version "https://raw.githubusercontent.com/seppycool/PressPlay/master/OTA/bin_version.txt"
 #define URL_fw_Bin "https://raw.githubusercontent.com/seppycool/PressPlay/master/OTA/firmware.bin"
@@ -325,13 +325,13 @@ void WiFiMqtt_task(void *pvParameter){
       connectionCount++;
       vTaskDelay(pdMS_TO_TICKS(500));
       Serial.print(".");
-
+#if DEBUG
       if(connectionCount==10){
         mqtt_server = (char*)mqtt_private;
         Serial.printf("Connecting to %s ", ssid_private);
         WiFi.begin(ssid_private, password_private);
       }
-#if DEBUG
+
       if(connectionCount==20){
         mqtt_server = (char*)mqtt_nerdlab;
         Serial.printf("Connecting to %s ", ssid_nerdlab);
@@ -355,6 +355,8 @@ void WiFiMqtt_task(void *pvParameter){
   //server.begin();
   //Serial.println("HTTP server started");
   if(FirmwareVersionCheck()){
+    ledAnimation = e_allOn;
+    ledAnimationColor = CRGB::Green;
     firmwareUpdate();
   }
 
@@ -371,19 +373,7 @@ void WiFiMqtt_task(void *pvParameter){
 void firmwareUpdate(void) {
   WiFiClientSecure client;
   client.setCACert(rootCACertificate2);
-  //HttpsOTA.begin(URL_fw_Bin, rootCACertificate);
-  //httpUpdate.setLedPin(LED_BUILTIN, LOW);
   t_httpUpdate_return ret = httpUpdate.update(client, URL_fw_Bin);
-  /*while(HttpsOTA.status() == HTTPS_OTA_UPDATING){
-    Serial.println("Updating Software");
-  }
-  if(HttpsOTA.status() == HTTPS_OTA_SUCCESS){
-    Serial.println("update Succesfull, reboot system");
-    ESP.restart();
-  }
-  if(HttpsOTA.status() == HTTPS_OTA_FAIL){
-    Serial.println("update Failed");
-  }*/
 
   switch (ret) {
   case HTTP_UPDATE_FAILED:
