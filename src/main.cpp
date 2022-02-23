@@ -49,10 +49,13 @@
 #include "cert.h"
 
 String FirmwareVer = {
-  "1.4"
+  "1.5"
 };
-#define URL_fw_Version "https://raw.githubusercontent.com/seppycool/PressPlay/master/OTA/bin_version.txt"
-#define URL_fw_Bin "https://raw.githubusercontent.com/seppycool/PressPlay/master/OTA/firmware.bin"
+//#define URL_fw_Version "https://raw.githubusercontent.com/seppycool/PressPlay/master/OTA/bin_version.txt"
+//#define URL_fw_Bin "https://raw.githubusercontent.com/seppycool/PressPlay/master/OTA/firmware.bin"
+
+#define URL_fw_Version "http://10.10.0.2:5001/bin_version.txt"
+#define URL_fw_Bin "http://10.10.0.2:5001/firmware.bin"
 
 // Include custom images
 #include "images.h"
@@ -367,12 +370,6 @@ void WiFiMqtt_task(void *pvParameter){
   client.setServer(mqtt_server, 1883);
   client.setCallback(callback);
 
-  //server.on("/", HTTP_GET, [](AsyncWebServerRequest *request) {
-  //  request->send(200, "text/plain", "Hi! I am ESP32.");
-  //});
-  //AsyncElegantOTA.begin(&server);    // Start ElegantOTA
-  //server.begin();
-  //Serial.println("HTTP server started");
   if(FirmwareVersionCheck()){
     ledAnimation = e_allOn;
     ledAnimationColor = CRGB::Green;
@@ -390,8 +387,7 @@ void WiFiMqtt_task(void *pvParameter){
 }
 
 void firmwareUpdate(void) {
-  WiFiClientSecure client;
-  client.setCACert(rootCACertificate2);
+  WiFiClient client;
   t_httpUpdate_return ret = httpUpdate.update(client, URL_fw_Bin);
 
   switch (ret) {
@@ -417,30 +413,31 @@ int FirmwareVersionCheck(void) {
   fwurl += "?";
   fwurl += String(rand());
   Serial.println(fwurl);
-  WiFiClientSecure * client = new WiFiClientSecure;
+ // WiFiClientSecure * client = new WiFiClientSecure;
+ WiFiClient * client = new WiFiClient;
 
   if (client) 
   {
-    client -> setCACert(rootCACertificate2);
+    //client -> setCACert(rootCACertificate2);
 
     // Add a scoping block for HTTPClient https to make sure it is destroyed before WiFiClientSecure *client is 
-    HTTPClient https;
+    HTTPClient http;
 
-    if (https.begin( * client, fwurl)) 
+    if (http.begin( * client, fwurl)) 
     { // HTTPS      
-      Serial.print("[HTTPS] GET...\n");
+      Serial.print("[HTTP] GET...\n");
       // start connection and send HTTP header
       vTaskDelay(pdMS_TO_TICKS(100));
-      httpCode = https.GET();
+      httpCode = http.GET();
       vTaskDelay(pdMS_TO_TICKS(100));
       if (httpCode == HTTP_CODE_OK) // if version received
       {
-        payload = https.getString(); // save received version
+        payload = http.getString(); // save received version
       } else {
         Serial.print("error in downloading version file:");
         Serial.println(httpCode);
       }
-      https.end();
+      http.end();
     }
     delete client;
   }

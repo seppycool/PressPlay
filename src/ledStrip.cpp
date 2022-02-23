@@ -20,8 +20,8 @@ void pride()
  
   uint8_t sat8 = beatsin88( 87, 220, 250);
   uint8_t brightdepth = beatsin88( 341, 96, 224);
-  uint16_t brightnessthetainc16 = beatsin88( 203, (45 * 256), (60 * 256)); // change color speed --> higher is slower
-  uint8_t msmultiplier = beatsin88(147, 23, 60);
+  uint16_t brightnessthetainc16 = beatsin88( 203, (25 * 256), (60 * 256)); // change color speed --> higher is slower
+  uint8_t msmultiplier = beatsin88(147, 23, 30);
 
   uint16_t hue16 = sHue16;//gHue * 256;
   uint16_t hueinc16 = beatsin88(113, 1, 3000);
@@ -465,16 +465,16 @@ const TProgmemRGBPalette16 Ice_p FL_PROGMEM =
 // Add or remove palette names from this list to control which color
 // palettes are used, and in what order.
 const TProgmemRGBPalette16* ActivePaletteList[] = {
-  &RetroC9_p,
+  /*&RetroC9_p,
   &BlueWhite_p,
-  &RainbowColors_p,
-  &FairyLight_p,
-  &RedGreenWhite_p,
+  &RainbowColors_p,*/
+  /*&FairyLight_p,*/
+  /*&RedGreenWhite_p,
   &PartyColors_p,
-  &RedWhite_p,
+  &RedWhite_p,*/
   &Snow_p,
-  &Holly_p,
-  &Ice_p  
+  /*&Holly_p,
+  &Ice_p*/  
 };
 
 // Advance to the next color palette in the list (above).
