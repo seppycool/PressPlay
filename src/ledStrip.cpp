@@ -20,7 +20,7 @@ void pride()
  
   uint8_t sat8 = beatsin88( 87, 220, 250);
   uint8_t brightdepth = beatsin88( 341, 96, 224);
-  uint16_t brightnessthetainc16 = beatsin88( 203, (25 * 256), (40 * 256));
+  uint16_t brightnessthetainc16 = beatsin88( 203, (45 * 256), (60 * 256)); // change color speed --> higher is slower
   uint8_t msmultiplier = beatsin88(147, 23, 60);
 
   uint16_t hue16 = sHue16;//gHue * 256;
