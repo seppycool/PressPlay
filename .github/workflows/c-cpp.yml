@@ -25,21 +25,22 @@ jobs:
       # Checks-out your repository under $GITHUB_WORKSPACE, so your job can access it
       - uses: actions/checkout@v2
       
-      - uses: "finnp/create-file-action@master"
-        env:
-          FILE_NAME: "src/wificonfig.h"
-          FILE_DATA: |
-                    #define SSID_NERDLAB "FILL_SSID_NERDLAB" \n
-                    #define PASSWORD_NERDLAB "FILL_PASSWORD_NERDLAB" \n
-                    #define MQTT_SERVER_NERDLAB "FILL_MQTT_NERDLAB" \n
-                    \n
-                    #define SSID_PRIVATE "FILL_SSID_PRIVATE" \n
-                    #define PASSWORD_PRIVATE "FILL_PASSWORD_PRIVATE" \n
-                    #define MQTT_SERVER_PRIVATE "FILL_MQTT_PRIVATE" \n
-                    \n
-                    #define SSID_PRESSPLAY "FILL_SSID_PRESSPLAY" \n
-                    #define PASSWORD_PRESSPLAY "FILL_PASSWORD_PRESSPLAY" \n
-                    #define MQTT_SERVER_PRESSPLAY "FILL_MQTT_PRESSPLAY" \n
+      - uses: 1arp/create-a-file-action@0.2
+        with:
+          path: 'src'
+          file: 'wificonfig.h'
+          content: |
+            #define SSID_NERDLAB "FILL_SSID_NERDLAB'
+            #define PASSWORD_NERDLAB "FILL_PASSWORD_NERDLAB"
+            #define MQTT_SERVER_NERDLAB "FILL_MQTT_NERDLAB"
+            
+            #define SSID_PRIVATE "FILL_SSID_PRIVATE"
+            #define PASSWORD_PRIVATE "FILL_PASSWORD_PRIVATE"
+            #define MQTT_SERVER_PRIVATE "FILL_MQTT_PRIVATE"
+            
+            #define SSID_PRESSPLAY "FILL_SSID_PRESSPLAY"
+            #define PASSWORD_PRESSPLAY "FILL_PASSWORD_PRESSPLAY"
+            #define MQTT_SERVER_PRESSPLAY "FILL_MQTT_PRESSPLAY"
 
       - name: Installing platformio
         run: pip3 install -U platformio
