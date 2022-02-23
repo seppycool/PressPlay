@@ -62,6 +62,12 @@ controllers/output/status | "buttonsAnimationColorDeactivate" | disable switchin
 controllers/output/status | "buttonsAnimationColorActivate" | enable switching color depending on buttons pressed
 controllers/output/status | "ledStripDeactivate" | deactivate ledstrip
 controllers/output/status | "ledsStripActivate" | activate ledstrip
+controllers/output/status | "ledStripDeactivate" | deactivate ledstrip
+controllers/output/status | "ledsStripActivate" | activate ledstrip
+controllers/output/status | "demoModeDeactivate" | deactivate demoMode
+controllers/output/status | "demoModeActivate" | activate demoMode
+controllers/output/status | "confirmDeactivate" | deactivate confirm message after receiving
+controllers/output/status | "confirmActivate" | activate confirm message after receiving
 controllers/[macAdress]/output/# | # | same behaviour as other but specific for a controller with macAdress
 
 # Publications
@@ -72,5 +78,6 @@ controllers/[macAdress]/diagnostic | "controllers,id=[macAdress] SOC=[SOC]" | 5 
 controllers/[macAdress]/diagnostic | "controllers,id=[macAdress] lastClicked=[buttonNumber]" | 5 sec timer | last Pressed button
 controllers/[macAdress]/diagnostic | "controllers,id=[macAdress] buttonCount[buttonNumber]=[#buttonPressed]" | 5 sec timer | total amount of presses for every button
 controllers/[macAdress]/im_alive | "controllers,id=[macAdress] active=[secActive]" | 5 sec timer | im alive message with active time in seconds
+controllers/[macAdress]/confirm/[Recieved Topic] | "[Recieved Message]" | confirmActivate && "receive message" | A confirm message will be send with same recieved topic and message. This only when confirm message is activated
 
 
