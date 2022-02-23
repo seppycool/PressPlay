@@ -48,25 +48,10 @@ jobs:
       - name: Building a firmware for ESP32
         run: |
           pio run
-          
-      - name: Push a file to another repository
+      - name: get file
       # You may pin to the exact commit or the version.
-      # uses: dmnemec/copy_file_to_another_repo_action@c93037aa10fa8893de271f19978c980d0c1a9b37
-        uses: dmnemec/copy_file_to_another_repo_action@v1.1.1
+      # uses: GenesisSam/get-simple-file-action@6979f8ef3887e96d6e1505bcb059ec71cedf522e
+        uses: GenesisSam/get-simple-file-action@v1.0.5
         with:
-          # Source file from the origin directory
-          source_file: .pio/build/ttgo-t-beam/firmware.bin
-          # Destination repository
-          destination_repo: seppycool/PressPlay
-          # Directory to push the file to
-          destination_folder: /build
-          # Email for the git commit
-          user_email: test@test.com
-          # GitHub username for the commit
-          user_name: seppycool
-          # branch to push file to, defaults to master
-          # destination_branch: # optional
-          # Destination branch to create for this commit
-          destination_branch_create: build
-          # A custom message for the commmit
-          commit_message: add build file
+          # path name with file name (e.g. 'version', 'tmp/version')
+          file-name: .pio/build/ttgo-t-beam/firmware.bin
