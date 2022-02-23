@@ -48,10 +48,7 @@ jobs:
       - name: Building a firmware for ESP32
         run: |
           pio run
-      - name: get file
-      # You may pin to the exact commit or the version.
-      # uses: GenesisSam/get-simple-file-action@6979f8ef3887e96d6e1505bcb059ec71cedf522e
-        uses: GenesisSam/get-simple-file-action@v1.0.5
+      - uses: actions/upload-artifact@v2
         with:
-          # path name with file name (e.g. 'version', 'tmp/version')
-          file-name: .pio/build/ttgo-t-beam/firmware.bin
+          name: buildFile
+          path: .pio/build/ttgo-t-beam/firmware.bin
