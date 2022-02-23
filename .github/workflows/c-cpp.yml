@@ -30,7 +30,7 @@ jobs:
           path: 'src'
           file: 'wificonfig.h'
           content: |
-            #define SSID_NERDLAB "FILL_SSID_NERDLAB'
+            #define SSID_NERDLAB "FILL_SSID_NERDLAB"
             #define PASSWORD_NERDLAB "FILL_PASSWORD_NERDLAB"
             #define MQTT_SERVER_NERDLAB "FILL_MQTT_NERDLAB"
             
