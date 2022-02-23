@@ -251,7 +251,28 @@ void callback(char* topic, byte* message, unsigned int length) {
     if(messageTemp == "ledsStripActivate"){
       ledStripActive = true;
     }
+    if(messageTemp == "demoModeDeactivate"){
+      demoMode = false;
+    }
+    if(messageTemp == "demoModeActivate"){
+      demoMode = true;
+    }
+    if(messageTemp == "confirmDeactivate"){
+      sendConfirmMessage = false;
+    }
+    if(messageTemp == "confirmActivate"){
+      sendConfirmMessage = true;
+    }
   }
+
+  if(sendConfirmMessage){
+    if(client.connected()){
+      String topicResend = "controllers/" + macAddress + "/confirm/"+ String(topic);
+      String payloadResend = (String)messageTemp;
+      client.publish(topicResend.c_str(),payloadResend.c_str());
+    }
+  }
+
 }
 
 void reconnect() {
@@ -276,9 +297,9 @@ void reconnect() {
     } else {
       Serial.print("failed, rc=");
       Serial.print(client.state());
-      Serial.println(" try again in 5 seconds");
+      Serial.println(" try again in 1 seconds");
       // Wait 5 seconds before retrying
-      vTaskDelay(pdMS_TO_TICKS(5000));
+      vTaskDelay(pdMS_TO_TICKS(1000));
     }
   }
 }
@@ -896,6 +917,10 @@ void sendStatusUpdate(){
 
     topic = "controllers/" + macAddress + "/diagnostic/RSSI";
     payload = (String)((int)RSSI);
+    client.publish(topic.c_str(),payload.c_str());
+
+    topic = "controllers/" + macAddress + "/diagnostic/SoftwareVersion";
+    payload = FirmwareVer;
     client.publish(topic.c_str(),payload.c_str());
 
     topic = "controllers/" + macAddress + "/diagnostic/lastClicked";
