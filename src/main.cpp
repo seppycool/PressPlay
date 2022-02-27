@@ -48,8 +48,9 @@
 #include <WiFiClientSecure.h>
 #include "cert.h"
 
+//26 02 2022 remove confirm message 
 String FirmwareVer = {
-  "1.5"
+  "1.6"
 };
 //#define URL_fw_Version "https://raw.githubusercontent.com/seppycool/PressPlay/master/OTA/bin_version.txt"
 //#define URL_fw_Bin "https://raw.githubusercontent.com/seppycool/PressPlay/master/OTA/firmware.bin"

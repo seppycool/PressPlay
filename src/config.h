@@ -52,7 +52,7 @@ int lightshow = 0;
 bool buttonsActive = false;
 bool buttonsAnimationColorActive = false;
 bool ledStripActive = true;
-bool sendConfirmMessage = true;
+bool sendConfirmMessage = false;
 
 int questionTimerCount = 0;
 int questionTimerDuration;
