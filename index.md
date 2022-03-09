@@ -7,7 +7,7 @@ This will connect to wifi and MQTT to send all data
 # ButtonNumbers
 
 | Number | Button
---- | ---
+:--- | :---
 1 | Button Left
 2 | Button Right
 5 | Joystick Up
@@ -19,7 +19,7 @@ This will connect to wifi and MQTT to send all data
 # Animations
 
 | Number | Animation
---- | ---
+:--- | :---
 0 | All off
 1 | Cyclon
 2 | Cyclon 2
@@ -42,7 +42,7 @@ This will connect to wifi and MQTT to send all data
 # Subscriptions
 
 | Topic | Payload | Description
---- | --- | ---
+:--- | :--- | :---
 controllers/output/buttonLedLeft | dutycycle (0-255) | Set dutycycle left button going from 0/off to 255/on
 controllers/output/buttonLedRight | dutycycle (0-255) | Set dutycycle right button led going from 0/off to 255/on
 controllers/output/lightshow | lightshow number (int) | Start lightshow
