@@ -5,6 +5,7 @@ This controller has 2 buttons and a OLED Screen
 This will connect to wifi and MQTT to send all data
 
 # ButtonNumbers
+
 | Number | Button
 --- | ---
 1 | Button Left
@@ -16,6 +17,7 @@ This will connect to wifi and MQTT to send all data
 9 | Joystick Center
 
 # Animations
+
 | Number | Animation
 --- | ---
 0 | All off
@@ -38,6 +40,7 @@ This will connect to wifi and MQTT to send all data
 
 
 # Subscriptions
+
 | Topic | Payload | Description
 --- | --- | ---
 controllers/output/buttonLedLeft | dutycycle (0-255) | Set dutycycle left button going from 0/off to 255/on
@@ -71,6 +74,7 @@ controllers/output/status | "confirmActivate" | activate confirm message after r
 controllers/[macAdress]/output/# | # | same behaviour as other but specific for a controller with macAdress
 
 # Publications
+
 | Topic | Payload | trigger |description
 --- | --- | --- | ---
 controllers/[macAdress]/input | "buttonPress,id=[macAdress] button_name=[buttonNumber]" | buttonPress | Message will be send if button with buttonNumber is pressed
