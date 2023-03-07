@@ -49,8 +49,9 @@
 #include "cert.h"
 
 //26 02 2022 remove confirm message 
+//07 03 2023 remove demomode and update libs
 String FirmwareVer = {
-  "1.6"
+  "1.7"
 };
 //#define URL_fw_Version "https://raw.githubusercontent.com/seppycool/PressPlay/master/OTA/bin_version.txt"
 //#define URL_fw_Bin "https://raw.githubusercontent.com/seppycool/PressPlay/master/OTA/firmware.bin"
