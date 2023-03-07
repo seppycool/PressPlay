@@ -35,7 +35,7 @@
 #include <string>
 #include <iostream>
 
-#include "FreeRTOS.h"
+#include "freertos/FreeRTOS.h"
 #include "freertos/task.h"
 #include "freertos/timers.h"
 #include <EasyButton.h>
@@ -77,6 +77,7 @@ String FirmwareVer = {
 
 #define TEST 1
 #define DEBUG 0
+#define DEMOACTIVE 0
 
 // Use the corresponding display class:
 void WiFiMqtt_task(void *pvParameter);
@@ -255,12 +256,15 @@ void callback(char* topic, byte* message, unsigned int length) {
     if(messageTemp == "ledsStripActivate"){
       ledStripActive = true;
     }
+#if DEMOACTIVE
     if(messageTemp == "demoModeDeactivate"){
       demoMode = false;
     }
     if(messageTemp == "demoModeActivate"){
       demoMode = true;
     }
+#endif
+
     if(messageTemp == "confirmDeactivate"){
       sendConfirmMessage = false;
     }
@@ -327,7 +331,7 @@ void WiFiGotIP(WiFiEvent_t event, WiFiEventInfo_t info){
 void WiFiStationDisconnected(WiFiEvent_t event, WiFiEventInfo_t info){
   Serial.println("Disconnected from WiFi access point");
   Serial.print("WiFi lost connection. Reason: ");
-  Serial.println(info.disconnected.reason);
+  Serial.println(info.wifi_sta_disconnected.reason);
   Serial.println("Trying to Reconnect");
   WiFi.begin(ssid_pressplay, password_pressplay);
 }
@@ -337,9 +341,9 @@ void WiFiMqtt_task(void *pvParameter){
   mqtt_server = (char*)mqtt_pressplay;
 
   //Set Wifi Callback events
-  WiFi.onEvent(WiFiStationConnected, SYSTEM_EVENT_STA_CONNECTED);
-  WiFi.onEvent(WiFiGotIP, SYSTEM_EVENT_STA_GOT_IP);
-  WiFi.onEvent(WiFiStationDisconnected, SYSTEM_EVENT_STA_DISCONNECTED);
+  WiFi.onEvent(WiFiStationConnected, ARDUINO_EVENT_WIFI_STA_CONNECTED);
+  WiFi.onEvent(WiFiGotIP, ARDUINO_EVENT_WIFI_STA_GOT_IP);
+  WiFi.onEvent(WiFiStationDisconnected, ARDUINO_EVENT_WIFI_STA_DISCONNECTED);
 
   Serial.printf("Connecting to %s ", ssid_pressplay);
   WiFi.begin(ssid_pressplay, password_pressplay);
@@ -559,12 +563,14 @@ void onPressedButtonLeft()
   if(buttonsAnimationColorActive)
     ledAnimationColor = CRGB::Yellow;
   
+#if DEMOACTIVE
   if(demoMode){
     ledAnimation =  (LedAnimation)(buttonCount[(int)e_buttonLeft]%e_ledAnimations_max);
     if(ledAnimation == e_questionClock || ledAnimation == e_oneGlow){
       initQuestionTimer(questionTime);
     }
   }
+#endif
  
   sendButtonPressedMqtt(e_buttonLeft);
 }
@@ -577,10 +583,12 @@ void onPressedButtonRight()
 
   if(buttonsAnimationColorActive)
     ledAnimationColor = CRGB::Blue;
-  
+
+#if DEMOACTIVE  
   if(demoMode){
     ledAnimationColor = ledAnimationColor.setHue((buttonCount[(int)e_buttonRight]*25)%255);
   }
+#endif
 
   // ledAnimation = e_questionClock;
   // ledAnimationColor = CRGB::Blue;
@@ -622,11 +630,13 @@ void buttons_task(void *pvParameter){
   buttonLeft.onPressed(onPressedButtonLeft);
   
   //enable Demo Mode
+#if DEMOACTIVE
   if(buttonLeft.isPressed()){
     demoMode = true;
     buttonsActive = true;
     ledAnimation = e_rainbow;
   }
+#endif
 
   //RIGHT
   ledcSetup(ledChannel2, freq, resolution);
