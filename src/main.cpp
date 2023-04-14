@@ -48,10 +48,11 @@
 #include <WiFiClientSecure.h>
 #include "cert.h"
 
-//26 02 2022 remove confirm message 
-//07 03 2023 remove demomode and update libs
+//1.6: 26 02 2022 remove confirm message 
+//1.7: 07 03 2023 remove demomode and update libs
+//1.8: 14 04 2023 set platform = espressif32@3.5.0 to and revert lib update changes for wifi
 String FirmwareVer = {
-  "1.7"
+  "1.8"
 };
 //#define URL_fw_Version "https://raw.githubusercontent.com/seppycool/PressPlay/master/OTA/bin_version.txt"
 //#define URL_fw_Bin "https://raw.githubusercontent.com/seppycool/PressPlay/master/OTA/firmware.bin"
@@ -332,7 +333,7 @@ void WiFiGotIP(WiFiEvent_t event, WiFiEventInfo_t info){
 void WiFiStationDisconnected(WiFiEvent_t event, WiFiEventInfo_t info){
   Serial.println("Disconnected from WiFi access point");
   Serial.print("WiFi lost connection. Reason: ");
-  Serial.println(info.wifi_sta_disconnected.reason);
+  Serial.println(info.disconnected.reason);
   Serial.println("Trying to Reconnect");
   WiFi.begin(ssid_pressplay, password_pressplay);
 }
@@ -342,9 +343,9 @@ void WiFiMqtt_task(void *pvParameter){
   mqtt_server = (char*)mqtt_pressplay;
 
   //Set Wifi Callback events
-  WiFi.onEvent(WiFiStationConnected, ARDUINO_EVENT_WIFI_STA_CONNECTED);
-  WiFi.onEvent(WiFiGotIP, ARDUINO_EVENT_WIFI_STA_GOT_IP);
-  WiFi.onEvent(WiFiStationDisconnected, ARDUINO_EVENT_WIFI_STA_DISCONNECTED);
+    WiFi.onEvent(WiFiStationConnected, SYSTEM_EVENT_STA_CONNECTED);
+  WiFi.onEvent(WiFiGotIP, SYSTEM_EVENT_STA_GOT_IP);
+  WiFi.onEvent(WiFiStationDisconnected, SYSTEM_EVENT_STA_DISCONNECTED);
 
   Serial.printf("Connecting to %s ", ssid_pressplay);
   WiFi.begin(ssid_pressplay, password_pressplay);
